@@ -1,0 +1,2388 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الإدارة المالية للصيدلية</title>
+    <!-- Google Fonts: Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Export & Import -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Firebase Compat SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* ================= CSS VARIABLES ================= */
+        :root {
+            --font-family: 'Cairo', sans-serif;
+            --bg: #f4f6f9;
+            --surface: #ffffff;
+            --text: #212529;
+            --text-muted: #6c757d;
+            --primary: #0056b3;
+            --primary-hover: #004494;
+            --secondary: #6c757d;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --border: #dee2e6;
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --sidebar-bg: #343a40;
+            --sidebar-text: #c2c7d0;
+            --sidebar-active: #007bff;
+            --shadow: 0 4px 6px rgba(0,0,0,0.05);
+            --radius: 8px;
+            --table-stripe: #f8f9fa;
+        }
+
+        [data-theme="dark"] {
+            --bg: #2d2d2d;
+            --surface: #3a3a3a;
+            --text: #f8f9fa;
+            --text-muted: #adb5bd;
+            --border: #555555;
+            --sidebar-bg: #1e1e1e;
+            --sidebar-text: #e9ecef;
+            --shadow: 0 4px 6px rgba(0,0,0,0.3);
+            --table-stripe: #323232;
+        }
+
+        /* ================= RESET & BASE ================= */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; font-family: var(--font-family); background: var(--bg); color: var(--text); overflow: hidden; }
+        a { text-decoration: none; color: inherit; }
+        
+        /* ================= PIN LOCK SCREEN ================= */
+        .pin-lock-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .pin-card {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .pin-card h2 { margin-bottom: 10px; font-size: 1.5rem; color: var(--primary); }
+        .pin-card p { color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem; }
+
+        /* ================= LAYOUT ================= */
+        .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; transition: width 0.3s ease, transform 0.3s ease; z-index: 1000; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; font-size: 1.2rem; font-weight: 700; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.3s; }
+        .nav-menu { list-style: none; overflow-y: auto; overflow-x: hidden; flex: 1; padding: 10px 0; }
+        .nav-menu::-webkit-scrollbar { width: 5px; }
+        .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .nav-item { margin-bottom: 2px; }
+        .nav-link { display: flex; align-items: center; padding: 12px 20px; cursor: pointer; gap: 12px; transition: background 0.2s; font-size: 1.05rem; white-space: nowrap; }
+        .nav-link:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .nav-link.active { background: var(--sidebar-active); color: #fff; border-right: 4px solid #fff; }
+        .nav-icon { font-size: 1.2rem; min-width: 24px; text-align: center; }
+        .nav-text { transition: opacity 0.3s; }
+
+        /* Collapsed Sidebar */
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar.collapsed .sidebar-header { padding: 20px 0; font-size: 0; }
+        .sidebar.collapsed .sidebar-header::before { content: '💊'; font-size: 1.5rem; }
+        .sidebar.collapsed .nav-text { display: none; }
+        .sidebar.collapsed .nav-link { justify-content: center; padding: 15px 0; }
+        .sidebar.collapsed .nav-icon { font-size: 1.4rem; margin: 0; }
+
+        /* Main Content */
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; transition: margin 0.3s ease; }
+        header { height: 65px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: var(--shadow); z-index: 50; flex-shrink: 0; }
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        .header-title { font-size: 1.3rem; font-weight: 700; margin-right: 10px; }
+        .menu-toggle { font-size: 1.5rem; background: none; border: none; color: var(--text); cursor: pointer; display: block; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .live-time { font-size: 0.9rem; color: var(--text-muted); background: var(--bg); padding: 5px 10px; border-radius: var(--radius); border: 1px solid var(--border); }
+        
+        .content-area { flex: 1; overflow-y: auto; padding: 20px; }
+        .page-section { display: none; animation: fadeIn 0.3s ease; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Components */
+        .card { background: var(--surface); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; }
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: var(--surface); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; position: relative; overflow: hidden; }
+        .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background: var(--primary); }
+        .stat-title { font-size: 1rem; color: var(--text-muted); margin-bottom: 10px; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.95rem; transition: filter 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn:hover { filter: brightness(0.9); }
+        .btn-sm { padding: 5px 10px; font-size: 0.85rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: #000; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-icon { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text); }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: var(--text); font-size: 0.95rem; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: inherit; font-size: 1rem; transition: border 0.2s; }
+        .form-control:focus { outline: none; border-color: var(--primary); background: var(--surface); }
+        
+        /* Filter Bar */
+        .filter-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; background: var(--surface); padding: 15px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom:15px; justify-content: space-between;}
+        
+        /* Tables */
+        .table-responsive { width: 100%; overflow-x: auto; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .data-table th, .data-table td { border-bottom: 1px solid var(--border); padding: 12px 15px; text-align: right; font-size: 0.95rem; }
+        .data-table th { background: var(--bg); font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+        .data-table tbody tr:nth-child(even) { background: var(--table-stripe); }
+        .data-table tbody tr:hover { background: rgba(0, 123, 255, 0.05); }
+        .data-table tfoot th, .data-table tfoot td { background: var(--bg); font-weight: 700; color: var(--text); border-top: 2px solid var(--primary); }
+        .actions-cell { display: flex; gap: 5px; flex-wrap: nowrap; }
+
+        /* Accounting Statement Layout */
+        .fs-container { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); font-size: 1.05rem; }
+        .fs-row { display: flex; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+        .fs-row:last-child { border-bottom: none; }
+        .fs-header { background: var(--primary); color: white; font-weight: bold; font-size: 1.1rem; }
+        .fs-subtotal { background: var(--bg); font-weight: bold; }
+        .fs-total { background: var(--sidebar-bg); color: white; font-weight: bold; font-size: 1.2rem; }
+
+        /* Modals & Toasts */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--surface); width: 90%; max-width: 500px; border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: scaleIn 0.2s ease; display: flex; flex-direction: column; max-height: 90vh; }
+        @keyframes scaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 1.2rem; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
+        .modal-body { padding: 20px; overflow-y: auto; }
+
+        .toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: var(--radius); color: white; font-weight: 600; box-shadow: var(--shadow); transition: opacity 0.3s; }
+        .toast-success { background: var(--success); }
+        .toast-danger { background: var(--danger); }
+
+        .text-success { color: var(--success) !important; font-weight:bold; }
+        .text-danger { color: var(--danger) !important; font-weight:bold; }
+        .text-warning { color: var(--warning) !important; font-weight:bold; }
+        .text-muted { color: var(--text-muted); }
+        .text-center { text-align: center; }
+        
+        .css-chart { display: flex; align-items: flex-end; height: 180px; gap: 15px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-top: 20px; overflow-x: auto; }
+        .bar-wrapper { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 40px; height: 100%; justify-content: flex-end; position: relative; }
+        .bar { width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 2px; }
+        .bar-label { font-size: 0.8rem; margin-top: 5px; color: var(--text-muted); white-space: nowrap; }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; right: 0; transform: translateX(100%); height: 100%; width: 260px !important; }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .sidebar.collapsed .nav-text { display: inline; } 
+            .sidebar.collapsed .nav-link { justify-content: flex-start; padding: 12px 20px; }
+            .live-time { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- PIN Lock Screen Overlay -->
+<div id="pin-lock-overlay" class="pin-lock-screen" style="display: none;">
+    <div class="pin-card">
+        <h2>🔒 تسجيل الدخول المالي</h2>
+        <p>يرجى إدخال رمز المرور للوصول إلى بيانات الصيدلية</p>
+        <div class="form-group">
+            <input type="password" id="app-pin-input" class="form-control text-center" placeholder="••••" maxlength="8" style="font-size: 1.8rem; letter-spacing: 12px; font-weight: bold;" onkeydown="checkPinKey(event)">
+        </div>
+        <button class="btn btn-primary" style="width: 100%; padding: 12px;" onclick="validateAndUnlock()">دخول للنظام</button>
+        <div id="pin-error-msg" class="text-danger" style="margin-top: 15px; display: none;">رمز المرور الذي أدخلته غير صحيح!</div>
+    </div>
+</div>
+
+<div class="app-container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header" id="pharmacy-name-display">صيدليتي</div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a class="nav-link active" onclick="showSection('dashboard')"><span class="nav-icon">📊</span> <span class="nav-text">لوحة التحكم</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('sales')"><span class="nav-icon">💰</span> <span class="nav-text">المبيعات</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('purchases')"><span class="nav-icon">🛒</span> <span class="nav-text">المشتريات والمرتجع</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('expenses')"><span class="nav-icon">💸</span> <span class="nav-text">المصروفات</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('suppliers')"><span class="nav-icon">🏭</span> <span class="nav-text">الموردين</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('customers')"><span class="nav-icon">👥</span> <span class="nav-text">العملاء والتحصيل</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('employees')"><span class="nav-icon">👨‍💼</span> <span class="nav-text">الموظفين</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('transfers')"><span class="nav-icon">🔄</span> <span class="nav-text">التحويلات النقدية</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('treasury')"><span class="nav-icon">🏦</span> <span class="nav-text">الخزينة</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('finalAccount')"><span class="nav-icon">📋</span> <span class="nav-text">الحساب الختامي</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('dailySummary')"><span class="nav-icon">📅</span> <span class="nav-text">الملخص اليومي</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('reports')"><span class="nav-icon">📈</span> <span class="nav-text">التقارير المتقدمة</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> <span class="nav-text">الإعدادات</span></a></li>
+        </ul>
+    </aside>
+
+    <div class="main-wrapper">
+        <header>
+            <div class="header-left">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="header-title" id="header-title">لوحة التحكم</div>
+            </div>
+            <div class="header-right">
+                <div class="live-time" id="live-time"></div>
+                <button class="btn-icon" onclick="toggleTheme()" title="تغيير المظهر">🌗</button>
+                <button class="btn-icon" onclick="backupData()" title="نسخة احتياطية">💾</button>
+                <button class="btn-icon text-danger" onclick="exitApp()" title="إغلاق النظام">❌</button>
+            </div>
+        </header>
+
+        <div class="content-area" id="main-content-area">
+            
+            <section id="sec-dashboard" class="page-section active">
+                <div id="dashboard-alerts"></div>
+                <div class="grid-cards">
+                    <div class="stat-card"><div class="stat-title">رصيد الخزينة الرئيسية</div><div class="stat-value text-success" id="dash-treasury">0</div></div>
+                    <div class="stat-card"><div class="stat-title">إجمالي ديون الموردين</div><div class="stat-value text-danger" id="dash-supplier-debt">0</div></div>
+                    <div class="stat-card"><div class="stat-title">ديون العملاء الإجمالية (آخر تسجيل)</div><div class="stat-value text-warning" id="dash-customer-debt">0</div></div>
+                    <div class="stat-card"><div class="stat-title">مبيعات الشهر</div><div class="stat-value" id="dash-sales">0</div></div>
+                    <div class="stat-card"><div class="stat-title">مشتريات الشهر</div><div class="stat-value" id="dash-purchases">0</div></div>
+                    <div class="stat-card"><div class="stat-title">مصروفات الشهر</div><div class="stat-value" id="dash-expenses">0</div></div>
+                </div>
+                
+                <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                    <div class="card" style="flex:2; min-width:300px;">
+                        <h3>اتجاه المبيعات (آخر 6 أشهر)</h3>
+                        <div id="dash-sales-chart" class="css-chart"></div>
+                    </div>
+                    <div class="card" style="flex:1; min-width:300px; max-height: 400px; overflow-y:auto;">
+                        <h3>أحدث الحركات</h3>
+                        <div id="dash-feed" style="font-size:0.9rem; line-height:1.6;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-sales" class="page-section"><div class="card" id="sales-container"></div></section>
+            
+            <section id="sec-purchases" class="page-section">
+                <div id="purchases-cards"></div>
+                <div class="card">
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showSubTab('purc-master')">بيانات المشتريات</button>
+                        <button class="btn btn-secondary" onclick="showSubTab('purc-returns')">مرتجع المشتريات</button>
+                        <button class="btn btn-warning" onclick="showSubTab('purc-inventory')">📦 سجل تقييم المخزون المالي</button>
+                    </div>
+                    <div id="purc-master" class="sub-tab"></div>
+                    <div id="purc-returns" class="sub-tab" style="display:none;"></div>
+                    <div id="purc-inventory" class="sub-tab" style="display:none;"></div>
+                </div>
+            </section>
+            
+            <section id="sec-expenses" class="page-section"><div class="card" id="expenses-container"></div></section>
+
+            <section id="sec-suppliers" class="page-section">
+                <div id="suppliers-alerts"></div>
+                <div id="suppliers-cards"></div>
+                <div class="card">
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="showSubTab('sup-master')">بيانات الموردين</button>
+                        <button class="btn btn-secondary" onclick="showSubTab('sup-payments')">دفعات الموردين</button>
+                        <button class="btn btn-info" onclick="showSubTab('sup-orders')">📦 طلبيات ومتابعة التوريد</button>
+                        <button class="btn btn-warning" onclick="showSubTab('sup-statement')">🧾 كشف حساب مورد</button>
+                    </div>
+                    <div id="sup-master" class="sub-tab"></div>
+                    <div id="sup-payments" class="sub-tab" style="display:none;"></div>
+                    <div id="sup-orders" class="sub-tab" style="display:none;"></div>
+                    <div id="sup-statement" class="sub-tab" style="display:none;">
+                        <div class="form-group" style="max-width:300px;">
+                            <label>اختر المورد لعرض كشف الحساب والتحركات</label>
+                            <select id="sup-stmt-select" class="form-control" onchange="renderSupplierStatement()"></select>
+                        </div>
+                        <div id="sup-stmt-cards"></div>
+                        <div class="filter-bar" style="justify-content: flex-end;">
+                            <button class="btn btn-secondary" onclick="printSection('sup-stmt-wrapper', 'كشف حساب مورد تفصيلي')">🖨️ طباعة كشف الحساب</button>
+                        </div>
+                        <div id="sup-stmt-wrapper"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-customers" class="page-section">
+                <div id="customers-cards"></div>
+                <div class="card">
+                    <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showSubTab('cust-total-debts')">📊 سجل إجمالي الديون اليدوية</button>
+                        <button class="btn btn-warning" onclick="showSubTab('cust-payments')">💵 تسديدات العملاء الجارية</button>
+                    </div>
+                    <div id="cust-total-debts" class="sub-tab"></div>
+                    <div id="cust-payments" class="sub-tab" style="display:none;"></div>
+                </div>
+            </section>
+
+            <section id="sec-employees" class="page-section"><div class="card" id="employees-container"></div></section>
+            <section id="sec-transfers" class="page-section"><div class="card" id="transfers-container"></div></section>
+
+            <section id="sec-treasury" class="page-section">
+                <div id="treasury-cards"></div>
+                <div class="card">
+                    <div class="filter-bar">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <h3 style="margin:0;">دفتر الخزينة (الرئيسية)</h3>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <input type="date" id="treasury-date-from" class="form-control" style="width:140px;" onchange="sectionLoaders.treasury()" title="من تاريخ">
+                            <input type="date" id="treasury-date-to" class="form-control" style="width:140px;" onchange="sectionLoaders.treasury()" title="إلى تاريخ">
+                            <input type="text" id="treasury-search" class="form-control" style="width:200px;" placeholder="بحث عام..." oninput="sectionLoaders.treasury()">
+                            <button class="btn btn-warning btn-sm" onclick="toggleAdvFilter('treasury')">⚙️ فلترة متقدمة</button>
+                            <button class="btn btn-secondary" onclick="printSection('treasury-table-container', 'دفتر الخزينة')">🖨️ طباعة</button>
+                            <button class="btn btn-success" onclick="exportToExcel('treasury-table-container-table', 'Treasury')">📊 إكسيل</button>
+                        </div>
+                    </div>
+                    <div id="treasury-adv-panel" style="display:none; background:var(--bg); padding:10px; border-radius:var(--radius); border:1px solid var(--border); margin-top:5px; margin-bottom:15px;">
+                        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <label style="font-size:0.85rem; font-weight:bold; white-space:nowrap;">الحد الأدنى للمبلغ:</label>
+                                <input type="number" id="treasury-min-val" class="form-control" style="width:110px;" placeholder="0" oninput="sectionLoaders.treasury()">
+                            </div>
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <label style="font-size:0.85rem; font-weight:bold; white-space:nowrap;">الحد الأقصى للمبلغ:</label>
+                                <input type="number" id="treasury-max-val" class="form-control" style="width:110px;" placeholder="بلا حد" oninput="sectionLoaders.treasury()">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="treasury-table-container"></div>
+                </div>
+            </section>
+
+            <section id="sec-finalAccount" class="page-section">
+                <div class="card">
+                    <h3>توليد الحساب الختامي (قائمة التدفقات النقدية)</h3>
+                    <div class="filter-bar" style="justify-content: flex-start;">
+                        <div class="form-group" style="margin:0;"><label>من تاريخ</label><input type="date" id="fa-from" class="form-control"></div>
+                        <div class="form-group" style="margin:0;"><label>إلى تاريخ</label><input type="date" id="fa-to" class="form-control"></div>
+                        <button class="btn btn-primary" style="margin-top: 25px;" onclick="generateFinalAccount()">توليد التقرير</button>
+                        <button class="btn btn-secondary" style="margin-top: 25px;" onclick="printSection('fa-results-print', 'الحساب الختامي')">🖨️ طباعة</button>
+                    </div>
+                    <div id="fa-results-print">
+                        <div id="fa-results" style="padding:20px; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg); min-height:200px;">
+                            <p class="text-muted text-center">حدد الفترة واضغط توليد التقرير</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-dailySummary" class="page-section">
+                <div class="card">
+                    <h3>توليد ملخص الحسابات اليومي الشامل</h3>
+                    <div class="filter-bar" style="justify-content: flex-start; gap: 15px; flex-wrap: wrap;">
+                        <div class="form-group" style="margin:0;">
+                            <label>تاريخ التقرير اليومي</label>
+                            <input type="date" id="ds-date" class="form-control" style="width:160px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:15px; margin-top:25px; flex-wrap:wrap;">
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-sales" checked> المبيعات</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-purchases" checked> المشتريات</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-returns" checked> مرتجع المشتريات</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-expenses" checked> المصروفات</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-supp-payments" checked> مدفوعات الموردين</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-transfers" checked> التحويلات النقدية</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-cust-debts" checked> ديون العملاء (جرد)</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-cust-payments" checked> تحصيلات العملاء</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-inventory" checked> تقييم المخزون</label>
+                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-orders" checked> طلبيات الموردين</label>
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:25px;" onclick="generateDailySummary()">توليد الملخص</button>
+                        <button class="btn btn-secondary" style="margin-top:25px;" onclick="printSection('ds-results-print', 'الملخص المالي اليومي للصيدلية')">🖨️ طباعة الملخص</button>
+                    </div>
+                    <div id="ds-results-print">
+                        <div id="ds-results" style="padding:20px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); min-height:200px;">
+                            <p class="text-muted text-center">حدد اليوم والخيارات ثم اضغط "توليد الملخص"</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-reports" class="page-section">
+                <div class="card">
+                    <h3>تقارير تفصيلية متقدمة واستدلالات</h3>
+                    <div class="filter-bar">
+                        <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:flex-end;">
+                            <div class="form-group" style="margin:0;">
+                                <label>نوع التقرير</label>
+                                <select id="rep-type" class="form-control">
+                                    <option value="sales">تقرير المبيعات</option>
+                                    <option value="purchases">تقرير المشتريات</option>
+                                    <option value="purchaseReturns">تقرير مرتجعات المشتريات (تأثير مالي على المورد)</option>
+                                    <option value="expenses">تقرير المصروفات</option>
+                                    <option value="transfers">تقرير التحويلات</option>
+                                    <option value="custDebts">تقرير مقارنة تراكم الديون</option>
+                                    <option value="inventoryTrend">تقرير نمو وتقييم المخزون</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin:0;"><label>من</label><input type="date" id="rep-from" class="form-control"></div>
+                            <div class="form-group" style="margin:0;"><label>إلى</label><input type="date" id="rep-to" class="form-control"></div>
+                            <button class="btn btn-primary" onclick="generateReport()">عرض التقرير</button>
+                        </div>
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-secondary" onclick="printSection('rep-results-wrapper', 'تقرير تفصيلي مالي')">🖨️ طباعة</button>
+                            <button class="btn btn-success" onclick="exportToExcel('rep-results-wrapper-table', 'Report')">📊 إكسيل</button>
+                        </div>
+                    </div>
+                    
+                    <div id="rep-summary" style="margin-bottom:15px;"></div>
+                    <div id="rep-results-wrapper"></div>
+                </div>
+            </section>
+
+            <section id="sec-settings" class="page-section">
+                <div class="grid-cards">
+                    <div class="card">
+                        <h3>إعدادات عامة</h3>
+                        <div class="form-group mt-3"><label>اسم الصيدلية</label><input type="text" id="set-pharmacyName" class="form-control"></div>
+                        <div class="form-group"><label>العملة</label><input type="text" id="set-currency" class="form-control" value="ج.م"></div>
+                        <div class="form-group"><label>اسم الخزينة الرئيسية (التي تعتمد عليها الحسابات)</label><input type="text" id="set-mainTreasury" class="form-control" value="الخزينة الرئيسية"></div>
+                        <div class="form-group"><label>الرصيد الافتتاحي للخزينة الرئيسية</label><input type="number" id="set-treasuryOpeningBalance" min="0" class="form-control"></div>
+                        <button class="btn btn-primary" onclick="saveSettings('general')">حفظ الإعدادات العامة</button>
+                    </div>
+
+                    <div class="card">
+                        <h3>قفل النظام بـ رمز PIN</h3>
+                        <div class="form-group"><label>رمز PIN الحالي (اتركه فارغاً لتعطيله في أول مرة)</label><input type="password" id="set-old-pin" class="form-control"></div>
+                        <div class="form-group"><label>رمز PIN الجديد</label><input type="password" id="set-new-pin" class="form-control" maxlength="8"></div>
+                        <button class="btn btn-warning" onclick="savePinCode()">تحديث رمز الحماية PIN</button>
+                        <p class="text-muted mt-2" style="font-size: 0.85rem;">تنبيه: في حال تفعيل الرمز، سيقفل النظام تلقائياً عند تحديث أو تحميل الصفحة مجدداً لحماية الدفاتر المالية.</p>
+                    </div>
+
+                    <div class="card" style="border: 1px solid var(--primary);">
+                        <h3 class="text-primary">☁️ إعدادات المزامنة السحابية (Firebase Firestore)</h3>
+                        <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                            البرنامج مهيأ للاتصال بقاعدة بياناتك السحابية الخاصة بشكل مستقل وآمن.
+                        </p>
+                        <div class="form-group">
+                            <label style="cursor: pointer; font-weight: 600;">
+                                <input type="checkbox" id="set-firebaseEnabled" onchange="toggleFirebaseUI()"> تفعيل الربط السحابي التلقائي
+                            </label>
+                        </div>
+                        <div id="firebase-config-fields" style="display:none; transition: all 0.3s;">
+                            <div class="form-group"><label>API Key</label><input type="password" id="set-fbApiKey" class="form-control"></div>
+                            <div class="form-group"><label>Auth Domain</label><input type="text" id="set-fbAuthDomain" class="form-control"></div>
+                            <div class="form-group"><label>Project ID</label><input type="text" id="set-fbProjectId" class="form-control"></div>
+                            <div class="form-group"><label>App ID</label><input type="text" id="set-fbAppId" class="form-control"></div>
+                            
+                            <button class="btn btn-primary mb-3" onclick="saveFirebaseSettings()" style="width: 100%;">💾 اختبار وحفظ تهيئة السحابة</button>
+                            <hr style="margin:15px 0; border:0; border-top:1px solid var(--border);">
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn btn-success" onclick="syncPushToCloud()" style="flex:1;">📤 رفع البيانات للسحاب</button>
+                                <button class="btn btn-warning" onclick="syncPullFromCloud()" style="flex:1;">📥 سحب البيانات من السحاب</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>القوائم المنسدلة (افصل بفاصلة , )</h3>
+                        <div class="form-group mt-3"><label>قائمة الخزائن</label><textarea id="set-treasuries" class="form-control" rows="2"></textarea></div>
+                        <div class="form-group"><label>أقسام المصروفات</label><textarea id="set-expenseCategories" class="form-control" rows="2"></textarea></div>
+                        <div class="form-group"><label>تخصصات الموظفين</label><textarea id="set-employeeRoles" class="form-control" rows="2"></textarea></div>
+                        <button class="btn btn-primary" onclick="saveSettings('lists')">حفظ القوائم</button>
+                    </div>
+
+                    <div class="card" style="border: 1px solid var(--danger); grid-column: 1 / -1;">
+                        <h3 class="text-danger">⚠️ إدارة البيانات والنسخ الاحتياطي</h3>
+                        <p class="text-muted mb-3" style="line-height: 1.6;">
+                            <strong>تنبيه هام جداً:</strong> البيانات مسجلة داخل متصفحك الحالي فقط. إذا قمت بمسح بيانات المتصفح ستفقد جميع حساباتك للأبد.<br>
+                            <strong>يرجى أخذ نسخة احتياطية يومياً للحفاظ على أموالك!</strong>
+                        </p>
+                        <button class="btn btn-success mb-3" onclick="backupData()" style="width:100%">💾 تصدير نسخة احتياطية (JSON)</button>
+                        <div class="form-group">
+                            <label>استعادة نسخة احتياطية سابقة</label>
+                            <input type="file" id="restore-file" class="form-control" accept=".json" onchange="restoreData(event)">
+                        </div>
+                        <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
+                        <button class="btn btn-danger" onclick="factoryReset()" style="width:100%">⚠️ ضبط المصنع (مسح كل البيانات)</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="main-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">إضافة سجل</h3>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+    /* ================= SYSTEM CORE ================= */
+    const DB_NAME = 'PharmacyFinDB_v2';
+    const DB_VERSION = 4; // Bumped to version 4 to support supplierOrders
+    let db;
+    let currencySymbol = 'ج.م';
+    let appSettings = {};
+
+    // معطيات الربط والتشغيل السحابي
+    let firebaseApp = null;
+    let fsDb = null;
+    let isFirebaseEnabled = false;
+
+    // دالة توليد معرف عشوائي فريد لمقاومة التصادم (ID Collision) عند الرفع والتحميل من السحابة
+    function generateUUID() {
+        if (typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        return 'id-' + Math.random().toString(36).substr(2, 16) + '-' + Date.now().toString(36);
+    }
+
+    const initDB = () => new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            db = e.target.result;
+            const stores = [
+                {n:'settings', opts:{keyPath:'id'}},
+                {n:'employees', opts:{keyPath:'id'}},
+                {n:'suppliers', opts:{keyPath:'id'}},
+                {n:'customers', opts:{keyPath:'id'}},
+                {n:'customerDebts', opts:{keyPath:'id'}, idx:'date'}, // مخزن تراكم الديون الإجمالية اليدوية
+                {n:'customerPayments', opts:{keyPath:'id'}, idx:'date'}, // مخزن تسديدات العملاء اليدوية
+                {n:'sales', opts:{keyPath:'id'}, idx:'date'},
+                {n:'purchases', opts:{keyPath:'id'}, idx:'date'},
+                {n:'purchaseReturns', opts:{keyPath:'id'}, idx:'date'},
+                {n:'expenses', opts:{keyPath:'id'}, idx:'date'},
+                {n:'supplierPayments', opts:{keyPath:'id'}, idx:'date'},
+                {n:'inventoryValuations', opts:{keyPath:'id'}, idx:'date'}, // مخزن جرد وتقييم المخزون يدوي
+                {n:'cashTransfers', opts:{keyPath:'id'}, idx:'date'},
+                {n:'supplierOrders', opts:{keyPath:'id'}, idx:'deliveryDate'} // مخزن طلبيات الموردين المطور
+            ];
+            stores.forEach(s => {
+                if(!db.objectStoreNames.contains(s.n)) {
+                    let st = db.createObjectStore(s.n, s.opts);
+                    if(s.idx) st.createIndex(s.idx, s.idx);
+                }
+            });
+        };
+        req.onsuccess = (e) => { db = e.target.result; resolve(); };
+        req.onerror = (e) => reject(e.error);
+    });
+
+    // تفعيل وتهيئة Firebase سحابياً
+    async function initFirebase() {
+        let configSetting = appSettings.firebaseConfig;
+        let enabledSetting = appSettings.firebaseEnabled;
+        
+        if (enabledSetting && configSetting && configSetting.projectId) {
+            try {
+                if (!firebase.apps.length) {
+                    firebaseApp = firebase.initializeApp(configSetting);
+                } else {
+                    firebaseApp = firebase.app();
+                }
+                fsDb = firebaseApp.firestore();
+                isFirebaseEnabled = true;
+                console.log("Firebase initialized successfully.");
+            } catch (err) {
+                console.error("Failed to initialize Firebase:", err);
+                isFirebaseEnabled = false;
+            }
+        } else {
+            isFirebaseEnabled = false;
+        }
+    }
+
+    const dbOp = (store, op, data=null) => new Promise((resolve, reject) => {
+        const tx = db.transaction(store, op==='get'||op==='getAll'?'readonly':'readwrite');
+        const s = tx.objectStore(store);
+        let req;
+        if(op==='getAll') req = s.getAll();
+        else if(op==='get') req = s.get(data);
+        else if(op==='add') {
+            if(!data.id) data.id = generateUUID();
+            req = s.add(data);
+        }
+        else if(op==='put') {
+            if(!data.id) data.id = generateUUID();
+            req = s.put(data);
+        }
+        else if(op==='delete') req = s.delete(data);
+        else if(op==='clear') req = s.clear();
+        
+        req.onsuccess = async () => {
+            let result = req.result;
+            resolve(result);
+
+            // المزامنة اللحظية الخلفية الهادئة مع Firebase Firestore عند حدوث عمليات كتابة محلية ناجحة
+            if (isFirebaseEnabled && !['settings'].includes(store)) {
+                try {
+                    let docId = "";
+                    if (op === 'add' || op === 'put') {
+                        docId = String(data.id || result);
+                        await fsDb.collection(store).doc(docId).set(data);
+                    } else if (op === 'delete') {
+                        docId = String(data);
+                        await fsDb.collection(store).doc(docId).delete();
+                    } else if (op === 'clear') {
+                        let snapshot = await fsDb.collection(store).get();
+                        let batch = fsDb.batch();
+                        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                        await batch.commit();
+                    }
+                } catch (fsErr) {
+                    console.warn("Firestore sync failed (offline status):", fsErr);
+                }
+            }
+        };
+        req.onerror = () => reject(req.error);
+    });
+
+    /* ================= UTILS ================= */
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (window.innerWidth <= 768) sidebar.classList.toggle('mobile-open');
+        else sidebar.classList.toggle('collapsed');
+    }
+
+    function exitApp() { 
+        if(confirm('هل أنت متأكد أنك تريد إغلاق النظام؟')) { 
+            window.close(); 
+            document.body.innerHTML = `<div style="display:flex; height:100vh; width:100vw; align-items:center; justify-content:center; background:var(--bg); color:var(--text); flex-direction:column; font-family:'Cairo', sans-serif;"><h1 style="color:var(--success); font-size:5rem; margin-bottom:10px;">🛡️</h1><h2>تم إغلاق النظام بأمان</h2></div>`;
+        } 
+    }
+
+    const showToast = (msg, type='success') => {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => { t.style.opacity = 0; setTimeout(()=>t.remove(), 300); }, 3000);
+    };
+
+    const formatMoney = (amount) => Number(amount||0).toLocaleString('ar-EG', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + currencySymbol;
+    const exportToExcel = (tableId, fname) => { let tbl = document.getElementById(tableId); if(tbl) XLSX.writeFile(XLSX.utils.table_to_book(tbl,{sheet:"Data"}), `${fname}_${new Date().toISOString().slice(0,10)}.xlsx`); };
+    
+    // محرك الطباعة الشامل والمعدل لخدمة الجداول والتقارير بأعلى دقة ممكنة ومخصصة
+    const printSection = (id, title) => {
+        let elem = document.getElementById(id);
+        if(!elem) return;
+        let clone = elem.cloneNode(true);
+        
+        // إعداد العنوان المخصص المضاف لكشف حساب المورد باسم المورد المحدد
+        if (id === 'sup-stmt-wrapper') {
+            let select = document.getElementById('sup-stmt-select');
+            if (select && select.value) {
+                title = `كشف حساب المورد تفصيلي - ${select.options[select.selectedIndex].text}`;
+            }
+        }
+
+        // الحذف المباشر الموثوق لعمود الإجراءات بالاعتماد على الفئة لحماية محاذاة الجداول
+        clone.querySelectorAll('.actions-header, .actions-cell').forEach(e => e.remove());
+
+        let content = clone.innerHTML;
+        let printFrame = document.createElement('iframe');
+        printFrame.style.position = 'fixed'; printFrame.style.right = '0'; printFrame.style.bottom = '0'; printFrame.style.width = '0'; printFrame.style.height = '0'; printFrame.style.border = '0';
+        document.body.appendChild(printFrame);
+
+        let doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <html dir="rtl">
+            <head>
+                <title>${title}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+                <style>
+                    body { font-family: 'Cairo', sans-serif; padding: 15px; direction: rtl; background: #fff; color: #000; margin: 0; box-sizing: border-box; }
+                    * { box-sizing: border-box; }
+                    h2 { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px; font-size: 1.4rem; }
+                    .print-meta { display: flex; justify-content: space-between; font-size: 11px; color: #333; margin-bottom: 15px; border-bottom: 1px solid #aaa; padding-bottom: 8px; }
+                    table { width: 100% !important; border-collapse: collapse; margin-top: 10px; font-size: 11px; table-layout: auto; }
+                    th, td { border: 1px solid #000; padding: 6px 8px; text-align: right; word-wrap: break-word; }
+                    th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; }
+                    tfoot th, tfoot td { background-color: #e9ecef !important; font-weight: bold !important; border-top: 2px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .text-success { color: #198754 !important; font-weight: bold; }
+                    .text-danger { color: #dc3545 !important; font-weight: bold; }
+                    .text-warning { color: #d39e00 !important; font-weight: bold; }
+                    tr { page-break-inside: avoid; }
+                    tr:nth-child(even) { background-color: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .fs-container { border: 1px solid #000; margin-bottom: 15px; font-size: 13px; border-radius: 4px; overflow: hidden; }
+                    .fs-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #ccc; }
+                    .fs-row:last-child { border-bottom: none; }
+                    .fs-header { background: #f0f0f0 !important; font-weight: bold; font-size: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #000; }
+                    .fs-subtotal { background: #fdfdfd !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .fs-total { background: #e0e0e0 !important; font-weight: bold; font-size: 16px; border-top: 2px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .grid-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
+                    .stat-card { border: 1px solid #000; padding: 8px; text-align: center; border-radius: 4px; background: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .stat-title { font-size: 11px; color: #333; margin-bottom: 3px; }
+                    .stat-value { font-size: 13px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h2>${appSettings.pharmacyName || 'الصيدلية'}</h2>
+                <div class="print-meta">
+                    <span>التقرير: ${title}</span>
+                    <span>تاريخ واستخراج الطباعة: ${new Date().toLocaleString('ar-EG')}</span>
+                </div>
+                ${content}
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        printFrame.contentWindow.focus();
+        setTimeout(() => {
+            printFrame.contentWindow.print();
+            setTimeout(() => { document.body.removeChild(printFrame); }, 1500); 
+        }, 500);
+    };
+
+    /* ================= PIN SYSTEM LOGIC ================= */
+    async function checkAppPinOnLoad() {
+        let pinEnabled = appSettings.appPin ? true : false;
+        let overlay = document.getElementById('pin-lock-overlay');
+        if (pinEnabled) {
+            overlay.style.display = 'flex';
+            document.getElementById('app-pin-input').focus();
+        } else {
+            overlay.style.display = 'none';
+        }
+    }
+
+    function checkPinKey(event) {
+        if (event.key === 'Enter') {
+            validateAndUnlock();
+        }
+    }
+
+    function validateAndUnlock() {
+        let input = document.getElementById('app-pin-input').value;
+        let realPin = appSettings.appPin || '';
+        if (input === realPin) {
+            document.getElementById('pin-lock-overlay').style.display = 'none';
+            document.getElementById('pin-error-msg').style.display = 'none';
+            showToast('تم فك القفل بنجاح', 'success');
+        } else {
+            document.getElementById('pin-error-msg').style.display = 'block';
+            document.getElementById('app-pin-input').value = '';
+            document.getElementById('app-pin-input').focus();
+        }
+    }
+
+    async function savePinCode() {
+        let oldPinInput = document.getElementById('set-old-pin').value;
+        let newPinInput = document.getElementById('set-new-pin').value.trim();
+        let currentPin = appSettings.appPin || '';
+
+        if (currentPin !== '' && oldPinInput !== currentPin) {
+            return showToast('رمز PIN الحالي المدخل غير صحيح!', 'danger');
+        }
+
+        await dbOp('settings', 'put', { id: 'appPin', value: newPinInput });
+        showToast('تم تحديث رمز الحماية بنجاح', 'success');
+        document.getElementById('set-old-pin').value = '';
+        document.getElementById('set-new-pin').value = '';
+        loadSettingsData();
+    }
+
+    /* ================= RENDERERS ================= */
+    const renderCards = (containerId, cards) => {
+        let h = `<div class="grid-cards" style="margin-bottom: 20px;">`;
+        cards.forEach(c => {
+            h += `<div class="stat-card" style="padding:15px;">
+                    <div class="stat-title" style="font-size:0.95rem;">${c.title}</div>
+                    <div class="stat-value ${c.color||''}">${c.value}</div>
+                  </div>`;
+        });
+        h += `</div>`;
+        let el = document.getElementById(containerId);
+        if(el) el.innerHTML = h;
+    };
+
+    const createTableHTML = (cols, data, rowActions=null, emptyMsg="لا توجد بيانات مسجلة") => {
+        let h = `<div class="table-responsive"><table class="data-table"><thead><tr>`;
+        cols.forEach(c => h += `<th>${c.label}</th>`);
+        if(rowActions) h += `<th class="actions-header">إجراءات</th>`;
+        h += `</tr></thead><tbody>`;
+        
+        let hasMoneyCol = cols.some(c => c.format === 'money' && c.key !== 'runBal' && c.key !== 'diff');
+
+        if(data.length === 0) h += `<tr><td colspan="${cols.length+(rowActions?1:0)}" class="text-center text-muted">${emptyMsg}</td></tr>`;
+        else {
+            data.forEach(row => {
+                h += `<tr>`;
+                cols.forEach(c => {
+                    let val = row[c.key];
+                    if(c.format === 'money') val = formatMoney(val);
+                    if(c.format === 'date') val = new Date(val).toLocaleDateString('ar-EG');
+                    if(c.format === 'dir') val = val==='in'?'<span class="text-success">وارد ✅</span>':'<span class="text-danger">صادر ❌</span>';
+                    if(c.format === 'diff') {
+                        let color = val > 0 ? 'var(--danger)' : (val < 0 ? 'var(--success)' : 'inherit');
+                        val = `<span style="color:${color}; direction:ltr; display:inline-block;">${val>0?'+':''}${val}</span>`;
+                    }
+                    h += `<td>${val !== undefined && val !== null ? val : ''}</td>`;
+                });
+                if(rowActions) {
+                    h += `<td class="actions-cell">`;
+                    rowActions.forEach(a => h += `<button class="btn btn-sm btn-${a.type}" onclick="${a.handler}('${row.id}')" title="${a.label}">${a.icon} ${a.text||''}</button>`);
+                    h += `</td>`;
+                }
+                h += `</tr>`;
+            });
+        }
+
+        // Totals Row
+        let footerHTML = '';
+        if (data.length > 0 && hasMoneyCol) {
+            footerHTML += `<tfoot><tr>`;
+            cols.forEach((c, i) => {
+                if (c.format === 'money' && c.key !== 'runBal' && c.key !== 'diff') {
+                    let sum = data.reduce((acc, row) => acc + (Number(row[c.key]) || 0), 0);
+                    footerHTML += `<td>${formatMoney(sum)}</td>`;
+                } else if (i === 0) {
+                    footerHTML += `<td>الإجمالي الكلي</td>`;
+                } else {
+                    footerHTML += `<td></td>`;
+                }
+            });
+            if(rowActions) footerHTML += `<td class="actions-cell"></td>`;
+            footerHTML += `</tr></tfoot>`;
+        }
+
+        return h + `</tbody>${footerHTML}</table></div>`;
+    };
+
+    function generateActionBar(id, addFn, label, extraHTML='', hideAddBtn=false) {
+        let addBtn = hideAddBtn ? '' : `<button class="btn btn-primary" onclick="${addFn}">➕ إضافة ${label}</button>`;
+        let prefix = id.split('-')[0];
+        return `<div class="filter-bar" style="flex-direction: column; align-items: stretch; gap: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    ${addBtn}
+                    ${extraHTML}
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="date" id="${id}-date-from" class="form-control" style="width:140px;" onchange="sectionLoaders.${prefix}()" title="من تاريخ">
+                    <input type="date" id="${id}-date-to" class="form-control" style="width:140px;" onchange="sectionLoaders.${prefix}()" title="إلى تاريخ">
+                    <input type="text" id="${id}-search" class="form-control" style="width:180px;" placeholder="بحث عام..." oninput="sectionLoaders.${prefix}()">
+                    <button class="btn btn-warning btn-sm" onclick="toggleAdvFilter('${id}')">⚙️ فلترة متقدمة</button>
+                    <button class="btn btn-secondary" onclick="printSection('${id}-wrapper', 'سجل ${label}')">🖨️ طباعة</button>
+                    <button class="btn btn-success" onclick="exportToExcel('${id}-wrapper-table', '${id}')">📊 إكسيل</button>
+                </div>
+            </div>
+            <div id="${id}-adv-panel" style="display:none; background:var(--bg); padding:10px; border-radius:var(--radius); border:1px solid var(--border); margin-top:5px;">
+                <div style="display:flex; gap:15px; flex-wrap:wrap; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="font-size:0.85rem; font-weight:bold; white-space:nowrap;">الحد الأدنى للمبلغ:</label>
+                        <input type="number" id="${id}-min-val" class="form-control" style="width:110px;" placeholder="0" oninput="sectionLoaders.${prefix}()">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="font-size:0.85rem; font-weight:bold; white-space:nowrap;">الحد الأقصى للمبلغ:</label>
+                        <input type="number" id="${id}-max-val" class="form-control" style="width:110px;" placeholder="بلا حد" oninput="sectionLoaders.${prefix}()">
+                    </div>
+                </div>
+            </div>
+        </div><div id="${id}-wrapper"></div>`;
+    }
+
+    function toggleAdvFilter(id) {
+        let panel = document.getElementById(`${id}-adv-panel`);
+        if(panel) {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    const applyFilters = (data, prefix, searchProps, amountKey=null) => {
+        let sElem = document.getElementById(`${prefix}-search`);
+        let fElem = document.getElementById(`${prefix}-date-from`);
+        let tElem = document.getElementById(`${prefix}-date-to`);
+        let minElem = document.getElementById(`${prefix}-min-val`);
+        let maxElem = document.getElementById(`${prefix}-max-val`);
+        
+        let s = sElem ? sElem.value.toLowerCase() : '';
+        let fD = fElem ? fElem.value : '';
+        let tD = tElem ? tElem.value : '';
+        let minVal = minElem && minElem.value !== '' ? Number(minElem.value) : null;
+        let maxVal = maxElem && maxElem.value !== '' ? Number(maxElem.value) : null;
+
+        return data.filter(x => {
+            let matchDate = true;
+            if(x.date) {
+                if (fD && x.date < fD) matchDate = false;
+                if (tD && x.date > tD) matchDate = false;
+            } else if(x.orderDate) {
+                if (fD && x.orderDate < fD) matchDate = false;
+                if (tD && x.orderDate > tD) matchDate = false;
+            } else if(x.monthYear) {
+                if (fD && x.monthYear < fD.substring(0,7)) matchDate = false;
+                if (tD && x.monthYear > tD.substring(0,7)) matchDate = false;
+            }
+            
+            let matchSearch = true;
+            if (s && searchProps) {
+                matchSearch = searchProps.some(prop => String(x[prop]||'').toLowerCase().includes(s));
+            }
+
+            let matchAmount = true;
+            if (amountKey) {
+                let val = Number(x[amountKey]||0);
+                if (minVal !== null && val < minVal) matchAmount = false;
+                if (maxVal !== null && val > maxVal) matchAmount = false;
+            }
+
+            return matchDate && matchSearch && matchAmount;
+        });
+    };
+
+    /* ================= FORMS & MODALS ================= */
+    let currentFormType = null, currentEditId = null;
+    const storeMap = { 
+        sales:'sales', 
+        purchases:'purchases', 
+        purchaseReturns:'purchaseReturns',
+        expenses:'expenses', 
+        suppliers:'suppliers', 
+        supplierPayments:'supplierPayments', 
+        supplierOrders: 'supplierOrders', // Added for orders
+        customers:'customers', 
+        customerDebts:'customerDebts', 
+        customerPayments:'customerPayments', 
+        employees:'employees', 
+        inventoryValuations:'inventoryValuations',
+        transfers:'cashTransfers' 
+    };
+    
+    const formsConfig = {
+        sales: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'employeeId',t:'select',l:'الموظف',r:1,opts:[]},{n:'amount',t:'number',l:'إجمالي المبلغ المورد للدرج',r:1,min:0},{n:'treasury',t:'select',l:'إلى خزينة',r:1,opts:[]}],
+        purchases: [{n:'invoiceNo',t:'text',l:'رقم الفاتورة التوريدية',r:1},{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد المستحق له الفاتورة',r:1,opts:[]},{n:'totalValue',t:'number',l:'القيمة الإجمالية للفاتورة الكلية',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات'}],
+        purchaseReturns: [{n:'invoiceNo',t:'text',l:'رقم الفاتورة المرجعي',r:1},{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد',r:1,opts:[]},{n:'itemName',t:'text',l:'اسم الصنف المرتجع',r:1},{n:'quantity',t:'number',l:'العدد',r:1,min:1},{n:'returnValue',t:'number',l:'قيمة المرتجع (تخصم من حساب المورد ولا تؤثر في الخزينة)',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات الإرجاع المعتمدة'}],
+        expenses: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'amount',t:'number',l:'مبلغ المصروف',r:1,min:0},{n:'treasury',t:'select',l:'خصماً من الخزينة',r:1,opts:[]},{n:'category',t:'select',l:'التصنيف القطاعي للنفقة',r:1,opts:[]},{n:'description',t:'text',l:'البيان والتفصيل المالي',r:1},{n:'paymentMethod',t:'select',l:'طريقة الدفع والمخرج',r:1,opts:[{v:'نقدي',l:'نقدي'},{v:'فيزا',l:'فيزا'}]}],
+        suppliers: [{n:'name',t:'text',l:'اسم المورد والجهة',r:1},{n:'phone',t:'text',l:'الهاتف والاتصال',r:1},{n:'address',t:'text',l:'العنوان الوطني للشركة'},{n:'openingBalance',t:'number',l:'رصيد افتتاحي (مستحق له)',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات وإيضاحات'}],
+        supplierPayments: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد المستلم',r:1,opts:[]},{n:'amount',t:'number',l:'المبلغ المدفوع للمندوب',r:1,min:0},{n:'treasury',t:'select',l:'خصماً من خزينة',r:1,opts:[]},{n:'method',t:'select',l:'طريقة السداد للجهة',r:1,opts:[{v:'نقدي',l:'نقدي'},{v:'شيك',l:'شيك'},{v:'تحويل',l:'تحويل بنكي'}]},{n:'notes',t:'textarea',l:'ملاحظات'}],
+        supplierOrders: [
+            {n:'orderDate',t:'date',l:'تاريخ الطلبية',r:1},
+            {n:'deliveryDate',t:'date',l:'تاريخ التسليم المتوقع',r:1},
+            {n:'supplierId',t:'select',l:'المورد المستهدف للطلبية',r:1,opts:[]},
+            {n:'amount',t:'number',l:'القيمة التقديرية للطلبية',r:1,min:0},
+            {n:'status',t:'select',l:'حالة الطلبية الجارية',r:1,opts:[
+                {v:'pending',l:'قيد الطلب / معلقة ⏳'},
+                {v:'postponed',l:'مؤجلة 🔁'},
+                {v:'cancelled',l:'ملغاة ❌'},
+                {v:'received',l:'تم الاستلام ✅'}
+            ]},
+            {n:'notes',t:'textarea',l:'تفاصيل الطلبية والأصناف'}
+        ],
+        customers: [{n:'name',t:'text',l:'اسم العميل الكامل',r:1},{n:'phone',t:'text',l:'الهاتف والاتصال'},{n:'notes',t:'textarea',l:'ملاحظات وتصنيفات'}],
+        customerDebts: [{n:'date',t:'date',l:'تاريخ الجرد والتسجيل للذمة',r:1},{n:'totalDebt',t:'number',l:'إجمالي الدين المقيد يدوياً من واقع السجلات',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات وإيضاح السجل'}],
+        customerPayments: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'customerName',t:'text',l:'اسم العميل (كتابة يدوية)',r:1},{n:'amount',t:'number',l:'قيمة السداد المالي (لا تؤثر بالخزينة)',r:1,min:0},{n:'remainingDebt',t:'number',l:'المتبقي على العميل المستهدف يدوياً',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات السداد'}],
+        employees: [{n:'name',t:'text',l:'الاسم الكامل للموظف',r:1},{n:'role',t:'select',l:'التخصص الوظيفي',r:1,opts:[]},{n:'salary',t:'number',l:'الراتب الأساسي المعتمد',r:1,min:0},{n:'hours',t:'text',l:'ساعات العمل اليومية'},{n:'hireDate',t:'date',l:'تاريخ التعيين والالتحاق بالعمل',r:1},{n:'status',t:'select',l:'الحالة الوظيفية الجارية',r:1,opts:[{v:'active',l:'نشط في الخدمة'},{v:'inactive',l:'غير نشط حالياً'}]}],
+        inventoryValuations: [{n:'date',t:'date',l:'تاريخ جرد وتقييم البضاعة',r:1},{n:'value',t:'number',l:'إجمالي القيمة التقديرية للمخزون المالي',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات وحالة الجرد بالتفصيل'}],
+        transfers: [
+            {n:'date',t:'date',l:'التاريخ',r:1},
+            {n:'fromTreasury',t:'select',l:'من الخزانة المصدر',r:1,opts:[]},
+            {n:'toTreasury',t:'select',l:'إلى الخزانة المستلمة النقدية',r:1,opts:[]},
+            {n:'amount',t:'number',l:'المبلغ المنقول',r:1,min:0},
+            {n:'method',t:'select',l:'طريقة التحويل النبضي كاش',r:1,opts:[
+                {v:'تحويل نقدي',l:'تحويل نقدي'},
+                {v:'فودافون كاش',l:'فودافون كاش'},
+                {v:'انستا بي',l:'انستا باي'},
+                {v:'مندوب تسليم',l:'مندوب تسليم'}
+            ]},
+            {n:'deliveryAgent',t:'text',l:'اسم مندوب التسليم (يظهر ويفعل للمناديب فقط)'},
+            {n:'employeeId',t:'select',l:'المسؤول عن النقل المادي/التحويل',r:1,opts:[]}
+        ]
+    };
+
+    const getOpts = async (store, lKey='name', vKey='id') => (await dbOp(store,'getAll')).map(i=>({v:i[vKey], l:i[lKey]}));
+    const getSettingOpts = (key) => (appSettings[key]||[]).map(i=>({v:i,l:i}));
+
+    async function openModalForm(type, id=null) {
+        currentFormType = type; currentEditId = id;
+        
+        if(['sales','transfers'].includes(type)) { let e = await getOpts('employees'); if(type==='sales') formsConfig.sales.find(x=>x.n==='employeeId').opts=e; else formsConfig.transfers.find(x=>x.n==='employeeId').opts=e; }
+        if(['purchases','purchaseReturns','supplierPayments','supplierOrders'].includes(type)) formsConfig[type].find(x=>x.n==='supplierId').opts = await getOpts('suppliers');
+        if(type==='expenses') formsConfig.expenses.find(x=>x.n==='category').opts = getSettingOpts('expenseCategories');
+        if(type==='employees') formsConfig.employees.find(x=>x.n==='role').opts = getSettingOpts('employeeRoles');
+        
+        let treasuriesOpts = getSettingOpts('treasuries');
+        formsConfig[type].forEach(f => { if(f.n === 'treasury' || f.n === 'fromTreasury' || f.n === 'toTreasury') f.opts = treasuriesOpts; });
+
+        let h = `<form id="dyn-form" onsubmit="handleFormSubmit(event)">`;
+        formsConfig[type].forEach(f => {
+            h += `<div class="form-group" id="group-${f.n}"><label>${f.l}</label>`;
+            if(f.t==='select') {
+                h += `<input type="text" placeholder="🔍 بحث سريع..." class="form-control" style="margin-bottom:6px; padding:5px 10px; font-size:0.9rem;" oninput="filterSelectOptions(this, 'field-${f.n}')">`;
+                h += `<select name="${f.n}" id="field-${f.n}" class="form-control" ${f.r?'required':''}><option value="">اختر...</option>` + f.opts.map(o=>`<option value="${o.v}">${o.l}</option>`).join('') + `</select>`;
+            }
+            else if(f.t==='textarea') { h += `<textarea name="${f.n}" class="form-control"></textarea>`; }
+            else { h += `<input type="${f.t}" name="${f.n}" id="field-${f.n}" class="form-control" ${f.r?'required':''} step="any" ${f.min!==undefined?`min="${f.min}"`:''}>`; }
+            h += `</div>`;
+        });
+        h += `<div style="display:flex;gap:10px;margin-top:20px;"><button type="submit" class="btn btn-primary" style="flex:1">💾 حفظ السجل الحالي</button></div></form>`;
+        document.getElementById('modal-title').textContent = id ? 'تعديل السجل الحالي' : 'إضافة سجل مالي جديد';
+        document.getElementById('modal-body').innerHTML = h;
+        document.getElementById('main-modal').classList.add('active');
+
+        // الربط والديناميكية الفورية لإظهار وإخفاء حقل المندوب في التحويلات النقدية
+        if(type === 'transfers') {
+            setTimeout(() => {
+                let methodSel = document.getElementById('field-method');
+                let agentInp = document.getElementById('field-deliveryAgent');
+                if (methodSel && agentInp) {
+                    let grp = document.getElementById('group-deliveryAgent');
+                    let toggleGrp = () => {
+                        grp.style.display = methodSel.value === 'مندوب تسليم' ? 'block' : 'none';
+                        if(methodSel.value !== 'مندوب تسليم') agentInp.value = '';
+                    };
+                    methodSel.addEventListener('change', toggleGrp);
+                    toggleGrp();
+                }
+            }, 50);
+        }
+
+        if(id) {
+            let data = await dbOp(storeMap[type], 'get', id);
+            let form = document.getElementById('dyn-form');
+            for(let k in data) if(form.elements[k]) form.elements[k].value = data[k];
+            // إعادة التفعيل والتنشيط اليدوي في حالة التعديل
+            if(type === 'transfers') {
+                let methodSel = document.getElementById('field-method');
+                if (methodSel) methodSel.dispatchEvent(new Event('change'));
+            }
+        } else {
+            if (formsConfig[type].find(x=>x.n==='date')) document.getElementById('dyn-form').elements['date'].value = new Date().toISOString().slice(0,10);
+            if (formsConfig[type].find(x=>x.n==='orderDate')) document.getElementById('dyn-form').elements['orderDate'].value = new Date().toISOString().slice(0,10);
+            if (formsConfig[type].find(x=>x.n==='deliveryDate')) document.getElementById('dyn-form').elements['deliveryDate'].value = new Date().toISOString().slice(0,10);
+            if (formsConfig[type].find(x=>x.n==='treasury')) document.getElementById('dyn-form').elements['treasury'].value = appSettings.mainTreasury || 'الخزينة الرئيسية';
+        }
+    }
+
+    function filterSelectOptions(input, selectId) {
+        let filter = input.value.trim().toLowerCase();
+        let select = document.getElementById(selectId);
+        if (!select) return;
+        
+        if (!select.dataset.origOptions) {
+            let opts = [];
+            for (let i = 0; i < select.options.length; i++) {
+                opts.push({ value: select.options[i].value, text: select.options[i].text });
+            }
+            select.dataset.origOptions = JSON.stringify(opts);
+        }
+        
+        let orig = JSON.parse(select.dataset.origOptions);
+        let selectedVal = select.value;
+        select.innerHTML = '';
+        orig.forEach(o => {
+            if (o.value === "" || o.text.toLowerCase().includes(filter)) {
+                let opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.text;
+                if (o.value === selectedVal) opt.selected = true;
+                select.appendChild(opt);
+            }
+        });
+    }
+
+    function closeModal() { document.getElementById('main-modal').classList.remove('active'); }
+    
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        let fd = new FormData(e.target);
+        let data = Object.fromEntries(fd.entries());
+        
+        ['amount','totalValue','returnValue','quantity','salary','openingBalance', 'customerId', 'supplierId', 'employeeId', 'totalDebt', 'value', 'remainingDebt'].forEach(k => { 
+            if(data[k] !== undefined && data[k] !== '') data[k]=Number(data[k]); 
+        });
+        
+        if(currentEditId) { data.id = currentEditId; await dbOp(storeMap[currentFormType], 'put', data); }
+        else { await dbOp(storeMap[currentFormType], 'add', data); }
+        
+        closeModal(); showToast('تم حفظ التعديلات بنجاح');
+        
+        const refMap = { 
+            sales:'sales', 
+            purchases:'purchases', 
+            purchaseReturns:'purchases',
+            inventoryValuations:'purchases',
+            expenses:'expenses', 
+            suppliers:'suppliers', 
+            supplierPayments:'suppliers', 
+            supplierOrders: 'suppliers', // Reload suppliers section for orders
+            customers:'customers', 
+            customerDebts:'customers', 
+            customerPayments:'customers', 
+            employees:'employees', 
+            transfers:'transfers' 
+        };
+        if(sectionLoaders[refMap[currentFormType]]) sectionLoaders[refMap[currentFormType]]();
+    }
+
+    async function delRecord(type, id) {
+        if(!confirm('هل أنت متأكد من رغبتك في حذف هذا السجل بشكل نهائي؟ لا يمكن الاسترجاع!')) return;
+        await dbOp(storeMap[type], 'delete', id);
+        showToast('تم حذف السجل من دفاتر الصيدلية');
+        const refMap = { 
+            sales:'sales', 
+            purchases:'purchases', 
+            purchaseReturns:'purchases',
+            inventoryValuations:'purchases',
+            expenses:'expenses', 
+            suppliers:'suppliers', 
+            supplierPayments:'suppliers', 
+            supplierOrders: 'suppliers',
+            customers:'customers', 
+            customerDebts:'customers', 
+            customerPayments:'customers', 
+            employees:'employees', 
+            transfers:'transfers' 
+        };
+        if(sectionLoaders[refMap[type]]) sectionLoaders[refMap[type]]();
+    }
+
+    /* ================= DATA LOGIC & ACCOUNTING ================= */
+    async function getDict(store) { let d = await dbOp(store,'getAll'); let r={}; d.forEach(x=>r[x.id]=x.name); return r; }
+    
+    // دالة احتساب رصيد الخزينة المستبعد منها تماماً أي أثر لمرتجع المشتريات أو تسديدات العملاء كما هو مطلوب
+    async function getTreasuryBalance() {
+        let open = Number(appSettings.treasuryOpeningBalance||0);
+        let mt = (appSettings.mainTreasury || 'الخزينة الرئيسية').trim(); 
+        let s = await dbOp('sales','getAll'), 
+            e = await dbOp('expenses','getAll'), 
+            p = await dbOp('supplierPayments','getAll'), 
+            t = await dbOp('cashTransfers','getAll');
+        
+        let sSum = s.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
+        let eSum = e.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
+        let pSum = p.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
+        
+        let bal = open + sSum - eSum - pSum;
+        t.forEach(x => { let fT = (x.fromTreasury||'').trim(), tT = (x.toTreasury||'').trim(); if(fT===mt) bal-=Number(x.amount); if(tT===mt) bal+=Number(x.amount); });
+        return bal;
+    }
+
+    // دالة احتساب المديونيات المستحقة للموردين مع دمج المرتجعات كعنصر خصم مباشر من حساب المورد فقط
+    async function calcSupplierBalances() {
+        let sups = await dbOp('suppliers','getAll'), 
+            purcs = await dbOp('purchases','getAll'), 
+            pays = await dbOp('supplierPayments','getAll'),
+            rets = await dbOp('purchaseReturns', 'getAll');
+
+        sups.forEach(s => {
+            let b = purcs.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.totalValue),0);
+            let p = pays.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.amount),0);
+            let r = rets.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.returnValue),0);
+            s.curBal = Number(s.openingBalance||0) + b - p - r;
+        });
+        return sups;
+    }
+
+    // جلب آخر قيمة مسجلة كمديونية إجمالية يدوياً للعملاء
+    async function getLastCustomerTotalDebt() {
+        let debts = await dbOp('customerDebts', 'getAll');
+        if (!debts.length) return 0;
+        debts.sort((a,b) => new Date(a.date) - new Date(b.date));
+        return Number(debts[debts.length - 1].totalDebt || 0);
+    }
+
+    /* ================= مسح بيانات العملاء دفعة واحدة ================= */
+    async function clearAllCustomers() {
+        if(confirm('🚨 تنبيه أمني خطير جداً: هل أنت متأكد من رغبتك في حذف وإفراغ كافة بيانات العملاء المسجلين والمديونيات والتسديدات نهائياً من الصيدلية؟ لا يمكن التراجع عن هذا الإجراء!') && confirm('⚠️ تأكيد نهائي أخير: مسح وحذف كل سجلات العملاء؟')) {
+            await dbOp('customers', 'clear');
+            await dbOp('customerDebts', 'clear');
+            await dbOp('customerPayments', 'clear');
+            showToast('تم مسح وإفراغ كافة بيانات العملاء بنجاح', 'success');
+            if (sectionLoaders.customers) sectionLoaders.customers();
+        }
+    }
+
+    /* ================= كشف حساب مورد تفصيلي مدمج بمرتجع غير نقدي ================= */
+    async function renderSupplierStatement() {
+        let sid = document.getElementById('sup-stmt-select').value;
+        let container = document.getElementById('sup-stmt-wrapper');
+        let cardsContainer = document.getElementById('sup-stmt-cards');
+        if (!sid) { container.innerHTML = ''; cardsContainer.innerHTML = ''; return; }
+
+        let lookupKey = isNaN(sid) ? sid : Number(sid);
+        let sup = await dbOp('suppliers', 'get', lookupKey);
+        
+        let purcs = (await dbOp('purchases', 'getAll')).filter(x => String(x.supplierId) === String(sid));
+        let pays = (await dbOp('supplierPayments', 'getAll')).filter(x => String(x.supplierId) === String(sid));
+        let rets = (await dbOp('purchaseReturns', 'getAll')).filter(x => String(x.supplierId) === String(sid));
+
+        if (!sup) {
+            container.innerHTML = '<p class="text-center text-danger">المورد المحدد لم يتم العثور عليه في قواعد البيانات المحلية</p>';
+            cardsContainer.innerHTML = '';
+            return;
+        }
+
+        let timeline = [];
+        timeline.push({ date: sup.date || '2025-01-01', type: 'رصيد افتتاحي مستحق', amount: Number(sup.openingBalance||0), change: Number(sup.openingBalance||0), notes: 'المستحقات المقيدة للجهة الموردة عند بدء التسجيل' });
+
+        purcs.forEach(p => timeline.push({ date: p.date, type: 'فاتورة مشتريات 📦', amount: Number(p.totalValue), change: Number(p.totalValue), notes: `فاتورة رقم: ${p.invoiceNo}` }));
+        pays.forEach(p => timeline.push({ date: p.date, type: 'دفعة مسددة 💵', amount: Number(p.amount), change: -Number(p.amount), notes: p.notes || 'سداد نقدي/بنكي' }));
+        rets.forEach(r => timeline.push({ date: r.date, type: 'مرتجع مشتريات ↩️', amount: Number(r.returnValue), change: -Number(r.returnValue), notes: `إرجاع صنف (${r.itemName}) فاتورة #${r.invoiceNo} (لا تؤثر بالخزينة)` }));
+
+        timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        let runBal = 0;
+        timeline.forEach(t => {
+            runBal += t.change;
+            t.runBal = runBal;
+        });
+
+        let totPurc = purcs.reduce((a,b)=>a+Number(b.totalValue),0);
+        let totPay = pays.reduce((a,b)=>a+Number(b.amount),0);
+        let totRet = rets.reduce((a,b)=>a+Number(b.returnValue),0);
+
+        cardsContainer.innerHTML = `
+        <div class="grid-cards" style="margin-top:15px; margin-bottom:15px;">
+            <div class="stat-card" style="padding:15px;"><div class="stat-title">الرصيد الافتتاحي له</div><div class="stat-value">${formatMoney(sup.openingBalance)}</div></div>
+            <div class="stat-card" style="padding:15px;"><div class="stat-title">إجمالي المشتريات</div><div class="stat-value text-danger">${formatMoney(totPurc)}</div></div>
+            <div class="stat-card" style="padding:15px;"><div class="stat-title">إجمالي المدفوعات له</div><div class="stat-value text-success">${formatMoney(totPay)}</div></div>
+            <div class="stat-card" style="padding:15px;"><div class="stat-title">إجمالي المرتجعات</div><div class="stat-value text-warning">${formatMoney(totRet)}</div></div>
+            <div class="stat-card" style="padding:15px;"><div class="stat-title">الرصيد النهائي المستحق للمورد</div><div class="stat-value text-danger" style="font-weight:700;">${formatMoney(runBal)}</div></div>
+        </div>`;
+
+        let cols = [
+            { key: 'date', label: 'التاريخ' },
+            { key: 'type', label: 'النوع' },
+            { key: 'notes', label: 'ملاحظات المعاملة' },
+            { key: 'amount', label: 'المبلغ الحالي', format: 'money' },
+            { key: 'runBal', label: 'الرصيد الجاري المستمر', format: 'money' }
+        ];
+
+        container.innerHTML = createTableHTML(cols, timeline, null, "لا توجد معاملات جارية مسجلة للمورد").replace('<table', '<table id="sup-stmt-wrapper-table"');
+    }
+
+    /* ================= ميزات الموردين: تأجيل، إلغاء، واستلام الطلبية تلقائياً ================= */
+    async function receiveSupplierOrder(id) {
+        let order = await dbOp('supplierOrders', 'get', id);
+        if (!order) return;
+        if (order.status === 'received') {
+            showToast('هذه الطلبية مستلمة بالفعل!', 'warning');
+            return;
+        }
+        if (confirm('هل ترغب في تحويل هذه الطلبية الآن تلقائياً لفاتورة مشتريات فعلية معتمدة؟ سيتم تقييد قيمتها مديونية للمورد وتسجيلها بدفاتر المشتريات.')) {
+            order.status = 'received';
+            await dbOp('supplierOrders', 'put', order);
+            
+            let invoiceNo = 'ORD-' + order.id.slice(0, 5).toUpperCase() + '-' + Math.floor(Math.random() * 1000);
+            let newPurchase = {
+                id: generateUUID(),
+                invoiceNo: invoiceNo,
+                date: new Date().toISOString().slice(0, 10),
+                supplierId: order.supplierId,
+                totalValue: Number(order.amount),
+                notes: `مستوردة تلقائياً من نظام الطلبيات والمتابعة. ملاحظات الطلب الأصلية: ${order.notes || ''}`
+            };
+            await dbOp('purchases', 'add', newPurchase);
+            showToast('تم استلام الطلبية وتوليد فاتورة مشتريات جديدة بنجاح', 'success');
+            sectionLoaders.suppliers();
+        }
+    }
+
+    async function cancelSupplierOrder(id) {
+        let order = await dbOp('supplierOrders', 'get', id);
+        if (!order) return;
+        if (confirm('هل أنت متأكد من إلغاء هذه الطلبية التوريدية؟')) {
+            order.status = 'cancelled';
+            await dbOp('supplierOrders', 'put', order);
+            showToast('تم إلغاء الطلبية', 'success');
+            sectionLoaders.suppliers();
+        }
+    }
+
+    async function postponeSupplierOrder(id) {
+        let order = await dbOp('supplierOrders', 'get', id);
+        if (!order) return;
+        let newDate = prompt('أدخل تاريخ التسليم المتوقع الجديد للطلبية (YYYY-MM-DD):', order.deliveryDate);
+        if (newDate) {
+            order.deliveryDate = newDate;
+            order.status = 'postponed';
+            await dbOp('supplierOrders', 'put', order);
+            showToast('تم تأجيل موعد تسليم الطلبية بنجاح', 'success');
+            sectionLoaders.suppliers();
+        }
+    }
+
+    // دالة فحص وتنبيهات الطلبيات المستحقة لليوم أو المتأخرة
+    async function checkSupplierOrderAlerts() {
+        let orders = await dbOp('supplierOrders', 'getAll');
+        let today = new Date().toISOString().slice(0, 10);
+        let alertOrders = orders.filter(x => (x.status === 'pending' || x.status === 'postponed') && x.deliveryDate <= today);
+        
+        let alertDashboard = document.getElementById('dashboard-alerts');
+        let alertSuppliers = document.getElementById('suppliers-alerts');
+        
+        let html = '';
+        if (alertOrders.length > 0) {
+            html = `<div style="background:var(--warning); color:#000; padding:12px 20px; border-radius:var(--radius); margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; font-weight:bold; border:1px solid #d39e00; font-size:0.95rem;">
+                <span>⚠️ تنبيه الطلبيات: لديك عدد (${alertOrders.length}) طلبية مستحقة التسليم اليوم أو متأخرة!</span>
+                <button class="btn btn-sm btn-primary" onclick="showSection('suppliers'); showSubTab('sup-orders');">عرض ومتابعة التوريد</button>
+            </div>`;
+        }
+        if (alertDashboard) alertDashboard.innerHTML = html;
+        if (alertSuppliers) alertSuppliers.innerHTML = html;
+    }
+
+    /* ================= SECTION LOADERS ================= */
+    const sectionLoaders = {
+        dashboard: async () => {
+            await checkSupplierOrderAlerts();
+            document.getElementById('dash-treasury').textContent = formatMoney(await getTreasuryBalance());
+            document.getElementById('dash-supplier-debt').textContent = formatMoney((await calcSupplierBalances()).reduce((a,b)=>a+b.curBal,0));
+            document.getElementById('dash-customer-debt').textContent = formatMoney(await getLastCustomerTotalDebt());
+            
+            let m = new Date().toISOString().slice(0,7);
+            document.getElementById('dash-sales').textContent = formatMoney((await dbOp('sales','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.amount),0));
+            document.getElementById('dash-purchases').textContent = formatMoney((await dbOp('purchases','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.totalValue),0));
+            document.getElementById('dash-expenses').textContent = formatMoney((await dbOp('expenses','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.amount),0));
+
+            let sales = await dbOp('sales','getAll');
+            let mData = {}; for(let i=5;i>=0;i--){ let d=new Date(); d.setMonth(d.getMonth()-i); mData[d.toISOString().slice(0,7)]=0; }
+            sales.forEach(s => { let m=s.date.slice(0,7); if(mData[m]!==undefined) mData[m]+=Number(s.amount); });
+            let max = Math.max(...Object.values(mData), 1);
+            let chHtml = Object.entries(mData).map(([k,v]) => `<div class="bar-wrapper"><div class="bar" style="height:${(v/max)*100}%"></div><div class="bar-label">${k.slice(5)}</div></div>`).join('');
+            document.getElementById('dash-sales-chart').innerHTML = chHtml;
+
+            let feed = [];
+            sales.forEach(s=>feed.push({d:s.date, t:`مبيعات بقيمة ${formatMoney(s.amount)}`}));
+            (await dbOp('expenses','getAll')).forEach(s=>feed.push({d:s.date, t:`منصرف مصرفي لـ ${s.category} بقيمة ${formatMoney(s.amount)}`}));
+            (await dbOp('purchases','getAll')).forEach(s=>feed.push({d:s.date, t:`فاتورة شراء مخزون بقيمة ${formatMoney(s.totalValue)}`}));
+            (await dbOp('purchaseReturns','getAll')).forEach(s=>feed.push({d:s.date, t:`إرجاع صنف بقيمة ${formatMoney(s.returnValue)} (مرتجع حساب المورد)`}));
+            feed.sort((a,b)=>new Date(b.d)-new Date(a.d));
+            document.getElementById('dash-feed').innerHTML = feed.slice(0,15).map(f=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);"><strong>${f.d}</strong> - ${f.t}</div>`).join('');
+        },
+        sales: async () => {
+            if(!document.getElementById('sales-wrapper')) document.getElementById('sales-container').innerHTML = generateActionBar('sales', "openModalForm('sales')", "شيفت مبيعات");
+            let data = await dbOp('sales','getAll');
+            let emps = await getDict('employees'), mt = appSettings.mainTreasury || 'الخزينة الرئيسية';
+            data.forEach(x => { x.empName = emps[x.employeeId]||'غير معروف'; x.treasuryName = x.treasury || mt; });
+            
+            let filteredData = applyFilters(data, 'sales', ['empName'], 'amount');
+            renderCards('sales-cards', [{title: 'شيفتات المبيعات المكتملة', value: filteredData.length}, {title: 'مجموع مبيعات الخزينة والدرج', value: formatMoney(filteredData.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-success'}]);
+            filteredData.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let cols = [{key:'id',label:'#'},{key:'date',label:'التاريخ'},{key:'empName',label:'الموظف'},{key:'treasuryName',label:'الخزينة الاستقبالية'},{key:'amount',label:'قيمة السحب',format:'money'}];
+            let acts = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSales"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSales"}];
+            document.getElementById('sales-wrapper').innerHTML = createTableHTML(cols, filteredData, acts).replace('<table', '<table id="sales-wrapper-table"');
+        },
+        purchases: async () => {
+            if(!document.getElementById('purcMaster-wrapper')) {
+                document.getElementById('purc-master').innerHTML = generateActionBar('purcMaster', "openModalForm('purchases')", "فاتورة مشتريات");
+                document.getElementById('purc-returns').innerHTML = generateActionBar('purcRet', "openModalForm('purchaseReturns')", "مرتجع بضائع المشتريات");
+                document.getElementById('purc-inventory').innerHTML = generateActionBar('invVal', "openModalForm('inventoryValuations')", "تقييم جرد المخزون يدوياً");
+            }
+            
+            let sups = await getDict('suppliers');
+            
+            let purcs = await dbOp('purchases','getAll');
+            purcs.forEach(x => x.supName = sups[x.supplierId]||'');
+            let filteredPurcs = applyFilters(purcs, 'purcMaster', ['invoiceNo', 'supName'], 'totalValue');
+            
+            let rets = await dbOp('purchaseReturns','getAll');
+            rets.forEach(x => x.supName = sups[x.supplierId]||'');
+            let filteredRets = applyFilters(rets, 'purcRet', ['invoiceNo', 'supName', 'itemName'], 'returnValue');
+
+            let invs = await dbOp('inventoryValuations', 'getAll');
+            invs.sort((a,b) => new Date(a.date) - new Date(b.date));
+            for(let i = 0; i < invs.length; i++) {
+                if (i === 0) invs[i].diff = 0;
+                else invs[i].diff = Number(invs[i].value) - Number(invs[i-1].value);
+            }
+            let filteredInvs = applyFilters(invs, 'invVal', ['notes'], 'value');
+
+            let totalP = filteredPurcs.reduce((a,b)=>a+Number(b.totalValue),0);
+            let totalR = filteredRets.reduce((a,b)=>a+Number(b.returnValue),0);
+            let lastInvVal = filteredInvs.length > 0 ? filteredInvs[filteredInvs.length-1].value : 0;
+
+            renderCards('purchases-cards', [
+                {title: 'الفواتير التوريدية المدخلة', value: filteredPurcs.length}, 
+                {title: 'قيمة المشتريات الإجمالية للموردين', value: formatMoney(totalP), color: 'text-danger'},
+                {title: 'إجمالي المرتجعات المخصومة من الموردين', value: formatMoney(totalR), color: 'text-warning'},
+                {title: 'آخر قيمة مخزون مسجلة', value: formatMoney(lastInvVal), color: 'text-primary'}
+            ]);
+
+            filteredPurcs.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let colsP = [{key:'invoiceNo',label:'رقم الفاتورة'},{key:'date',label:'التاريخ'},{key:'supName',label:'المورد المعتمد'},{key:'totalValue',label:'المبلغ الإجمالي',format:'money'},{key:'notes',label:'ملاحظات'}];
+            let actsP = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editPurchases"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delPurchases"}];
+            document.getElementById('purcMaster-wrapper').innerHTML = createTableHTML(colsP, filteredPurcs, actsP).replace('<table', '<table id="purcMaster-wrapper-table"');
+
+            filteredRets.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let colsR = [{key:'invoiceNo',label:'الفاتورة المستهدفة'},{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'itemName',label:'الصنف'},{key:'quantity',label:'الكمية'},{key:'returnValue',label:'قيمة المرتجع (تخصم من المورد فقط)',format:'money'}];
+            let actsR = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editPurchaseReturns"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delPurchaseReturns"}];
+            document.getElementById('purcRet-wrapper').innerHTML = createTableHTML(colsR, filteredRets, actsR).replace('<table', '<table id="purcRet-wrapper-table"');
+
+            filteredInvs.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let colsI = [{key:'date',label:'التاريخ'},{key:'value',label:'قيمة المخزون المقدرة',format:'money'},{key:'diff',label:'الفارق والاتجاه (مقارنة بالسابق)',format:'diff'},{key:'notes',label:'ملاحظات وحالة الجرد'}];
+            let actsI = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editInventoryValuations"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delInventoryValuations"}];
+            document.getElementById('invVal-wrapper').innerHTML = createTableHTML(colsI, filteredInvs, actsI).replace('<table', '<table id="invVal-wrapper-table"');
+        },
+        expenses: async () => {
+            if(!document.getElementById('expenses-wrapper')) document.getElementById('expenses-container').innerHTML = generateActionBar('expenses', "openModalForm('expenses')", "حركة مصروف جديدة");
+            let data = await dbOp('expenses','getAll');
+            let mt = appSettings.mainTreasury || 'الخزينة الرئيسية'; data.forEach(x => { x.treasuryName = x.treasury || mt; });
+            
+            let filteredData = applyFilters(data, 'expenses', ['category', 'description'], 'amount');
+            renderCards('expenses-cards', [{title: 'عدد سندات الصرف في الفترة', value: filteredData.length}, {title: 'مجموع مصروفات التشغيل المخرجة', value: formatMoney(filteredData.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-danger'}]);
+            filteredData.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            let cols = [{key:'date',label:'التاريخ'},{key:'category',label:'التصنيف القطاعي'},{key:'treasuryName',label:'خصماً من الخزينة'},{key:'description',label:'تفصيل المنصرف'},{key:'amount',label:'المبلغ المدفوع',format:'money'}];
+            let acts = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editExpenses"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delExpenses"}];
+            document.getElementById('expenses-wrapper').innerHTML = createTableHTML(cols, filteredData, acts).replace('<table', '<table id="expenses-wrapper-table"');
+        },
+        suppliers: async () => {
+            await checkSupplierOrderAlerts();
+            let sups = await calcSupplierBalances();
+            renderCards('suppliers-cards', [{title: 'الموردين المسجلين في النظام', value: sups.length}, {title: 'إجمالي الديون والالتزامات المالية للموردين', value: formatMoney(sups.reduce((a,b)=>a+b.curBal,0)), color: 'text-danger'}]);
+
+            if(!document.getElementById('supMaster-wrapper')) {
+                document.getElementById('sup-master').innerHTML = generateActionBar('supMaster', "openModalForm('suppliers')", "مورد");
+                document.getElementById('sup-payments').innerHTML = generateActionBar('supPay', "openModalForm('supplierPayments')", "دفعة سداد للمورد");
+                
+                // دمج وتبويب إدارة وتتبع الطلبيات والتوريد للموردين
+                let extraAction = `<button class="btn btn-warning" onclick="openModalForm('supplierPayments')">💵 سداد سريع للمورد</button>`;
+                document.getElementById('sup-orders').innerHTML = generateActionBar('supOrder', "openModalForm('supplierOrders')", "طلبية توريد", extraAction);
+            }
+
+            let stmtSelect = document.getElementById('sup-stmt-select');
+            if(stmtSelect) {
+                let currentVal = stmtSelect.value;
+                stmtSelect.innerHTML = '<option value="">اختر المورد المراد كشفه...</option>' + sups.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                if (currentVal) stmtSelect.value = currentVal;
+            }
+
+            let filteredSups = applyFilters(sups, 'supMaster', ['name', 'phone'], 'curBal');
+            document.getElementById('supMaster-wrapper').innerHTML = createTableHTML([{key:'name',label:'الاسم والشركة'},{key:'phone',label:'رقم الاتصال'},{key:'curBal',label:'الرصيد الجاري المستحق له',format:'money'}], filteredSups, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSuppliers"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSuppliers"}]).replace('<table', '<table id="supMaster-wrapper-table"');
+
+            let pays = await dbOp('supplierPayments','getAll'), sD = await getDict('suppliers'), mt = appSettings.mainTreasury || 'الخزينة الرئيسية';
+            pays.forEach(x => { x.supName = sD[x.supplierId]||''; x.treasuryName = x.treasury || mt; });
+            let filteredPays = applyFilters(pays, 'supPay', ['supName'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            document.getElementById('supPay-wrapper').innerHTML = createTableHTML([{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'treasuryName',label:'سحب من الخزينة'},{key:'amount',label:'المبلغ المودع',format:'money'}], filteredPays, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSupplierPayments"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSupplierPayments"}]).replace('<table', '<table id="supPay-wrapper-table"');
+            
+            // معالجة وجلب طلبيات التوريد المضافة حديثاً
+            let orders = await dbOp('supplierOrders', 'getAll');
+            orders.forEach(x => x.supName = sD[x.supplierId]||'');
+            let filteredOrders = applyFilters(orders, 'supOrder', ['supName', 'notes'], 'amount').sort((a,b)=>new Date(b.deliveryDate)-new Date(a.deliveryDate));
+            
+            let displayOrders = filteredOrders.map(o => {
+                let statusText = '';
+                if(o.status === 'pending') statusText = '<span class="text-warning" style="font-weight:bold;">قيد الانتظار ⏳</span>';
+                else if(o.status === 'postponed') statusText = '<span class="text-info" style="font-weight:bold;">مؤجلة 🔁</span>';
+                else if(o.status === 'cancelled') statusText = '<span class="text-danger" style="font-weight:bold;">ملغاة ❌</span>';
+                else if(o.status === 'received') statusText = '<span class="text-success" style="font-weight:bold;">تم الاستلام ✅</span>';
+                return { ...o, statusDisplay: statusText };
+            });
+
+            let colsO = [
+                {key:'orderDate', label:'تاريخ الطلب'},
+                {key:'deliveryDate', label:'تاريخ التسليم المتوقع'},
+                {key:'supName', label:'المورد المستهدف'},
+                {key:'amount', label:'القيمة التقديرية', format:'money'},
+                {key:'statusDisplay', label:'الحالة الجارية'},
+                {key:'notes', label:'تفاصيل الطلب'}
+            ];
+            // إجراءات العمليات والتعديل للطلبيات
+            let actsO = [
+                {label:'تعديل',icon:'✏️',type:'warning',handler:"editSupplierOrders"},
+                {label:'تأجيل',icon:'🔁',type:'info',handler:"postponeSupplierOrder"},
+                {label:'إلغاء',icon:'❌',type:'secondary',handler:"cancelSupplierOrder"},
+                {label:'استلام',icon:'✅',type:'success',handler:"receiveSupplierOrder"},
+                {label:'حذف',icon:'🗑️',type:'danger',handler:"delSupplierOrders"}
+            ];
+            document.getElementById('sup-orders-wrapper').innerHTML = createTableHTML(colsO, displayOrders, actsO).replace('<table', '<table id="sup-orders-wrapper-table"');
+
+            if(stmtSelect && stmtSelect.value) {
+                renderSupplierStatement();
+            }
+        },
+        customers: async () => {
+            let custs = await dbOp('customers','getAll');
+            let debts = await dbOp('customerDebts', 'getAll');
+            debts.sort((a,b) => new Date(a.date) - new Date(b.date));
+            for(let i = 0; i < debts.length; i++) {
+                if (i === 0) debts[i].diff = 0;
+                else debts[i].diff = Number(debts[i].totalDebt) - Number(debts[i-1].totalDebt);
+            }
+
+            let cpays = await dbOp('customerPayments','getAll'); 
+            let cDict = await getDict('customers');
+            cpays.forEach(x => { 
+                x.cName = x.customerName || cDict[x.customerId] || 'عميل غير معروف'; 
+            });
+
+            if(!document.getElementById('custDebt-wrapper')) {
+                let clearBtn = `<button class="btn btn-danger" onclick="clearAllCustomers()">⚠️ مسح وإفراغ كافة العملاء والديون</button>`;
+                document.getElementById('cust-total-debts').innerHTML = generateActionBar('custDebt', "openModalForm('customerDebts')", "سجل ذمة دين إجمالي", clearBtn);
+                document.getElementById('cust-payments').innerHTML = generateActionBar('custPay', "openModalForm('customerPayments')", "دفعة تحصيل من عميل");
+            }
+
+            let lastCustomerTotal = debts.length > 0 ? debts[debts.length-1].totalDebt : 0;
+            let filteredDebtsSummary = applyFilters(debts, 'custDebt', ['notes'], 'totalDebt');
+            let filteredCPaysSummary = applyFilters(cpays, 'custPay', ['cName'], 'amount');
+
+            renderCards('customers-cards', [
+                {title: 'العملاء المدرجين بالنظام', value: custs.length}, 
+                {title: 'آخر مديونية إجمالية مسجلة بالصيدلية', value: formatMoney(lastCustomerTotal), color: 'text-warning'},
+                {title: 'إجمالي تحصيلات دفعات العملاء (الفترة الحالية)', value: formatMoney(filteredCPaysSummary.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-success'}
+            ]);
+            
+            let filteredDebts = applyFilters(debts, 'custDebt', ['notes'], 'totalDebt').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            document.getElementById('custDebt-wrapper').innerHTML = createTableHTML([
+                {key:'date',label:'تاريخ الجرد والتسجيل'},
+                {key:'totalDebt',label:'إجمالي الدين المقيد بالخارج',format:'money'},
+                {key:'diff',label:'التطور المالي مقارنة بالسابق',format:'diff'},
+                {key:'notes',label:'ملاحظات وحالة الجرد'}
+            ], filteredDebts, [
+                {label:'تعديل',icon:'✏️',type:'warning',handler:"editCustomerDebts"},
+                {label:'حذف',icon:'🗑️',type:'danger',handler:"delCustomerDebts"}
+            ]).replace('<table', '<table id="custDebt-wrapper-table"');
+
+            let filteredCPays = applyFilters(cpays, 'custPay', ['cName'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            document.getElementById('custPay-wrapper').innerHTML = createTableHTML([
+                {key:'date',label:'تاريخ السداد والقبض'},
+                {key:'cName',label:'اسم العميل'},
+                {key:'amount',label:'المبلغ المسدد المقبوض (لا يؤثر بالخزينة)',format:'money'},
+                {key:'remainingDebt',label:'المتبقي المطلوب يدوياً',format:'money'},
+                {key:'notes',label:'ملاحظات السداد'}
+            ], filteredCPays, [
+                {label:'تعديل',icon:'✏️',type:'warning',handler:"editCustomerPayments"},
+                {label:'حذف',icon:'🗑️',type:'danger',handler:"delCustomerPayments"}
+            ]).replace('<table', '<table id="custPay-wrapper-table"');
+        },
+        employees: async () => {
+            if(!document.getElementById('emps-wrapper')) document.getElementById('employees-container').innerHTML = generateActionBar('emps', "openModalForm('employees')", "موظف");
+            let data = await dbOp('employees','getAll');
+            let filtered = applyFilters(data, 'emps', ['name', 'role'], 'salary');
+            renderCards('employees-cards', [{title: 'طاقم العمل المسجل', value: data.length}, {title: 'مجموع الرواتب الدورية المعتمدة', value: formatMoney(data.reduce((a,b)=>a+Number(b.salary||0),0)), color: 'text-primary'}]);
+            let cols = [{key:'name',label:'الاسم الكامل'},{key:'role',label:'التخصص/القسم'},{key:'salary',label:'الراتب الأساسي',format:'money'},{key:'status',label:'حالة الكادر'}];
+            document.getElementById('emps-wrapper').innerHTML = createTableHTML(cols, filtered, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editEmployees"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delEmployees"}]).replace('<table', '<table id="emps-wrapper-table"');
+        },
+        transfers: async () => {
+            if(!document.getElementById('trans-wrapper')) document.getElementById('transfers-container').innerHTML = generateActionBar('trans', "openModalForm('transfers')", "حركة تحويل نقدي");
+            let data = await dbOp('cashTransfers','getAll'), emps = await getDict('employees');
+            data.forEach(x => {
+                x.empName = emps[x.employeeId]||'';
+                x.displayAgent = x.deliveryAgent ? x.deliveryAgent : '---';
+            });
+            
+            let filtered = applyFilters(data, 'trans', ['empName', 'fromTreasury', 'toTreasury', 'method', 'deliveryAgent'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            renderCards('transfers-cards', [{title: 'حوالات الخزائن بالفترة', value: filtered.length}, {title: 'إجمالي المبالغ المنقولة نقدياً', value: formatMoney(filtered.reduce((a,b)=>a+Number(b.amount||0),0)), color: 'text-success'}]);
+            let cols = [
+                {key:'date',label:'التاريخ'},
+                {key:'fromTreasury',label:'الخزانة المصدر'},
+                {key:'toTreasury',label:'الخزانة المستقبلة'},
+                {key:'amount',label:'قيمة التحويل النقدية',format:'money'},
+                {key:'method',label:'طريقة التحويل'},
+                {key:'displayAgent',label:'اسم المندوب'},
+                {key:'empName',label:'المسؤول عن التنفيذ'}
+            ];
+            document.getElementById('trans-wrapper').innerHTML = createTableHTML(cols, filtered, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editTransfers"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delTransfers"}]).replace('<table', '<table id="trans-wrapper-table"');
+        },
+        treasury: async () => {
+            let mt = (appSettings.mainTreasury || 'الخزينة الرئيسية').trim();
+            let ledger = [{date:'2025-01-01', type:'رصيد افتتاحي للبرنامج', amount:Number(appSettings.treasuryOpeningBalance||0), dir:'in', desc:'الرصيد الافتتاحي المرجعي الأساسي للخزينة'}];
+            
+            (await dbOp('sales','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(s=>ledger.push({date:s.date, type:'حركة مبيعات 💰', amount:s.amount, dir:'in', desc:`شيفت مبيعات #${s.id}`}));
+            (await dbOp('expenses','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(e=>ledger.push({date:e.date, type:'مصروفات تشغيلية 💸', amount:e.amount, dir:'out', desc:`سند صرف: ${e.category} - ${e.description}`}));
+            
+            let supDict = await getDict('suppliers');
+            (await dbOp('supplierPayments','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(p=>ledger.push({date:p.date, type:'تسديد مورد 🏢', amount:p.amount, dir:'out', desc:`لصالح المورد: ${supDict[p.supplierId]||''}`}));
+            
+            (await dbOp('cashTransfers','getAll')).forEach(t=>{
+                let fT = (t.fromTreasury || '').trim(), tT = (t.toTreasury || '').trim();
+                if(fT === mt) ledger.push({date:t.date, type:'تحويل للخارج 🔄', amount:t.amount, dir:'out', desc:`منقول إلى ${t.toTreasury}`});
+                if(tT === mt) ledger.push({date:t.date, type:'تحويل للداخل 🔄', amount:t.amount, dir:'in', desc:`وارد من ${t.fromTreasury}`});
+            });
+            
+            ledger.sort((a,b)=>new Date(a.date)-new Date(b.date));
+            let bal = 0; ledger.forEach(r => { bal += r.dir==='in'?Number(r.amount):-Number(r.amount); r.runBal = bal; });
+            ledger.reverse();
+            
+            let filtered = applyFilters(ledger, 'treasury', ['type', 'desc'], 'amount');
+            
+            let totalIn = filtered.filter(x=>x.dir==='in').reduce((a,b)=>a+Number(b.amount),0);
+            let totalOut = filtered.filter(x=>x.dir==='out').reduce((a,b)=>a+Number(b.amount),0);
+
+            renderCards('treasury-cards', [
+                {title: 'الرصيد النقدي المتواجد حالياً بالخزينة', value: formatMoney(bal), color: 'text-primary'},
+                {title: 'إجمالي المقبوضات (للفترة المحددة)', value: formatMoney(totalIn), color: 'text-success'},
+                {title: 'إجمالي المدفوعات والخصومات (للفترة المحددة)', value: formatMoney(totalOut), color: 'text-danger'}
+            ]);
+
+            let cols = [{key:'date',label:'التاريخ'},{key:'type',label:'نوع المعاملة'},{key:'desc',label:'بيان وتفصيل'},{key:'amount',label:'المبلغ القياسي',format:'money'},{key:'dir',label:'المسار النبضي',format:'dir'},{key:'runBal',label:'المحفظة المتراكمة',format:'money'}];
+            document.getElementById('treasury-table-container').innerHTML = createTableHTML(cols, filtered).replace('<table', '<table id="treasury-table-container-table"');
+        },
+        dailySummary: async () => {
+            let today = new Date().toISOString().slice(0, 10);
+            document.getElementById('ds-date').value = today;
+            generateDailySummary();
+        },
+        settings: async () => {
+            document.getElementById('set-pharmacyName').value = appSettings.pharmacyName || '';
+            document.getElementById('set-currency').value = appSettings.currency || 'ج.م';
+            document.getElementById('set-mainTreasury').value = appSettings.mainTreasury || 'الخزينة الرئيسية';
+            document.getElementById('set-treasuryOpeningBalance').value = appSettings.treasuryOpeningBalance || 0;
+            document.getElementById('set-treasuries').value = (appSettings.treasuries||[]).join(', ');
+            document.getElementById('set-expenseCategories').value = (appSettings.expenseCategories||[]).join(', ');
+            document.getElementById('set-employeeRoles').value = (appSettings.employeeRoles||[]).join(', ');
+            
+            let fbEnabled = appSettings.firebaseEnabled || false;
+            let fbConfig = appSettings.firebaseConfig || { apiKey: '', authDomain: '', projectId: '', appId: '' };
+            
+            let chk = document.getElementById('set-firebaseEnabled');
+            if (chk) {
+                chk.checked = fbEnabled;
+                toggleFirebaseUI();
+                document.getElementById('set-fbApiKey').value = fbConfig.apiKey || '';
+                document.getElementById('set-fbAuthDomain').value = fbConfig.authDomain || '';
+                document.getElementById('set-fbProjectId').value = fbConfig.projectId || '';
+                document.getElementById('set-fbAppId').value = fbConfig.appId || '';
+            }
+        }
+    };
+
+    /* ================= FINAL ACCOUNT & REPORTS ================= */
+    async function generateFinalAccount() {
+        let f = document.getElementById('fa-from').value, t = document.getElementById('fa-to').value;
+        if(!f||!t) return showToast('حدد التواريخ والمدى أولاً','danger');
+        let dFil = x => x.date>=f && x.date<=t;
+        
+        let s = (await dbOp('sales','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
+        let e = (await dbOp('expenses','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
+        let sp = (await dbOp('supplierPayments','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
+        let p = (await dbOp('purchases','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.totalValue),0);
+        
+        // التحصيلات والمرتجعات معاملات تسوية تظهر ببنود مستقلة ورقياً
+        let cp = (await dbOp('customerPayments','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
+        let rets = (await dbOp('purchaseReturns','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.returnValue),0);
+        
+        let totalIn = s;
+        let totalOut = e + sp;
+        let netCash = totalIn - totalOut;
+        
+        let h = `
+        <div class="fs-container">
+            <div class="fs-row fs-header"><span>العائدات والتدفقات النقدية الداخلة للخزينة الفعلية</span></div>
+            <div class="fs-row"><span>مبيعات نقدية (الشيفتات المستلمة بالخزينة)</span><span class="text-success">${formatMoney(s)}</span></div>
+            <div class="fs-row fs-subtotal"><span>إجمالي التدفقات النقدية الداخلة الفعلية</span><span class="text-success">${formatMoney(totalIn)}</span></div>
+            
+            <div class="fs-row fs-header" style="margin-top:10px;"><span>المصروفات والتدفقات النقدية الخارجة من الخزينة الفعلية</span></div>
+            <div class="fs-row"><span>المصروفات التشغيلية والنثرية والرواتب</span><span class="text-danger">${formatMoney(e)}</span></div>
+            <div class="fs-row"><span>سداد مدفوعات الموردين النقدية</span><span class="text-danger">${formatMoney(sp)}</span></div>
+            <div class="fs-row fs-subtotal"><span>إجمالي التدفقات النقدية الخارجة الفعلية</span><span class="text-danger">${formatMoney(totalOut)}</span></div>
+            
+            <div class="fs-row fs-total" style="margin-top:10px;"><span>صافي التدفق المالي النقدي للخزينة</span><span style="color:${netCash>=0?'#4ade80':'#f87171'}">${formatMoney(netCash)}</span></div>
+        </div>
+        <div class="fs-container" style="margin-top:20px; border-color: var(--warning);">
+            <div class="fs-row fs-header" style="background:var(--warning); color:#000;"><span>تحركات موازية ائتمانية (لا تؤثر في كاش الخزينة وتوضح حركة اتجاه الصيدلية)</span></div>
+            <div class="fs-row"><span>إجمالي فواتير المشتريات المستلمة بالآجل</span><span class="text-warning">${formatMoney(p)}</span></div>
+            <div class="fs-row"><span>إجمالي مرتجعات بضائع المشتريات المخصومة من الموردين</span><span class="text-warning">${formatMoney(rets)}</span></div>
+            <div class="fs-row"><span>إجمالي المبالغ والديون المحصلة من العملاء الآجلين (مقيدة كودياً)</span><span class="text-success">${formatMoney(cp)}</span></div>
+        </div>`;
+        document.getElementById('fa-results').innerHTML = h;
+    }
+
+    async function generateReport() {
+        let typ = document.getElementById('rep-type').value, f = document.getElementById('rep-from').value, t = document.getElementById('rep-to').value;
+        let dFil = x => (!f || x.date>=f) && (!t || x.date<=t);
+        let data, cols, mt = appSettings.mainTreasury || 'الخزينة الرئيسية', totalSum = 0;
+
+        if(typ==='sales') { 
+            data=(await dbOp('sales','getAll')).filter(dFil); let eDict = await getDict('employees');
+            data.forEach(x=>{ x.tName = x.treasury||mt; x.empName = eDict[x.employeeId]||''; totalSum+=Number(x.amount); }); 
+            cols=[{key:'date',label:'التاريخ'},{key:'empName',label:'الموظف المستلم'},{key:'tName',label:'الخزينة المستهدفة'},{key:'amount',label:'المبلغ المورد للدرج',format:'money'}]; 
+        }
+        else if(typ==='purchases') { 
+            data=(await dbOp('purchases','getAll')).filter(dFil); let sDict = await getDict('suppliers');
+            data.forEach(x=>{ x.supName = sDict[x.supplierId]||''; totalSum+=Number(x.totalValue); });
+            cols=[{key:'date',label:'التاريخ'},{key:'invoiceNo',label:'رقم الفاتورة'},{key:'supName',label:'المورد المعتمد'},{key:'totalValue',label:'قيمة الشراء والمديونية المستحقة له',format:'money'}]; 
+        }
+        else if(typ==='purchaseReturns') { 
+            data=(await dbOp('purchaseReturns','getAll')).filter(dFil); let sDict = await getDict('suppliers');
+            data.forEach(x=>{ x.supName = sDict[x.supplierId]||''; totalSum+=Number(x.returnValue); });
+            cols=[{key:'date',label:'التاريخ'},{key:'invoiceNo',label:'الفاتورة المرجعية'},{key:'supName',label:'المورد'},{key:'itemName',label:'اسم الصنف المرتجع'},{key:'returnValue',label:'قيمة الارتجاع المالي (مخصومة من حساب المورد)',format:'money'}]; 
+        }
+        else if(typ==='expenses') { 
+            data=(await dbOp('expenses','getAll')).filter(dFil); 
+            data.forEach(x=>{ x.tName = x.treasury||mt; totalSum+=Number(x.amount); }); 
+            cols=[{key:'date',label:'التاريخ'},{key:'tName',label:'من خزينة'},{key:'category',label:'التصنيف القطاعي'},{key:'amount',label:'مبلغ المنصرف',format:'money'}]; 
+        }
+        else if(typ==='transfers') { 
+            data=(await dbOp('cashTransfers','getAll')).filter(dFil); 
+            data.forEach(x=>totalSum+=Number(x.amount));
+            cols=[{key:'date',label:'التاريخ'},{key:'fromTreasury',label:'الخزانة المصدر'},{key:'toTreasury',label:'الخزانة المستقبلة'},{key:'amount',label:'قيمة التحويل النقدية',format:'money'}]; 
+        }
+        else if(typ==='custDebts') {
+            data=(await dbOp('customerDebts', 'getAll')).filter(dFil);
+            data.sort((a,b)=>new Date(a.date)-new Date(b.date));
+            for(let i=0; i<data.length; i++) {
+                if (i===0) data[i].diff = 0;
+                else data[i].diff = Number(data[i].totalDebt) - Number(data[i-1].totalDebt);
+            }
+            cols=[{key:'date',label:'تاريخ الجرد والتسجيل'},{key:'totalDebt',label:'إجمالي مديونية العملاء',format:'money'},{key:'diff',label:'الفارق عن التسجيل السابق',format:'diff'},{key:'notes',label:'ملاحظات وحالة الجرد'}];
+        }
+        else if(typ==='inventoryTrend') {
+            data=(await dbOp('inventoryValuations', 'getAll')).filter(dFil);
+            data.sort((a,b)=>new Date(a.date)-new Date(b.date));
+            for(let i=0; i<data.length; i++) {
+                if (i===0) data[i].diff = 0;
+                else data[i].diff = Number(data[i].value) - Number(data[i-1].value);
+            }
+            cols=[{key:'date',label:'تاريخ تقييم البضاعة والمخزون'},{key:'value',label:'قيمة المخزون الإجمالية يدوياً',format:'money'},{key:'diff',label:'التطور المالي (مقارنة بالسابق)',format:'diff'},{key:'notes',label:'حالة الجرد والملاحظات'}];
+        }
+        
+        if(data && data.length > 0) {
+            document.getElementById('rep-summary').innerHTML = `
+                <div style="background:var(--primary); color:white; padding:15px; border-radius:var(--radius); display:flex; justify-content:space-around; font-size:1.1rem; font-weight:bold;">
+                    <span>مجموع الحركات المدرجة: ${data.length}</span>
+                    ${typ !== 'custDebts' && typ !== 'inventoryTrend' ? `<span>القيمة النقدية الكلية للتقرير: ${formatMoney(totalSum)}</span>` : ''}
+                </div>`;
+            document.getElementById('rep-results-wrapper').innerHTML = createTableHTML(cols, data).replace('<table', '<table id="rep-results-wrapper-table"');
+        } else {
+            document.getElementById('rep-summary').innerHTML = '';
+            document.getElementById('rep-results-wrapper').innerHTML = '<p class="text-center text-muted" style="padding:20px; border:1px solid var(--border); border-radius:var(--radius);">لا توجد معاملات مكتشفة ضمن النطاق الزمني المحدد للبحث</p>';
+        }
+    }
+
+    /* ================= لقطات ومقايضات اليوم المالي اليومي المجمع والمطور للطباعة ================= */
+    async function generateDailySummary() {
+        let dsDate = document.getElementById('ds-date').value;
+        if (!dsDate) {
+            dsDate = new Date().toISOString().slice(0, 10);
+            document.getElementById('ds-date').value = dsDate;
+        }
+
+        // قراءة الاختيارات من صناديق الاختيار العشرة للتحكم بظهور كافة المعاملات
+        let showSales = document.getElementById('ds-show-sales').checked;
+        let showPurchases = document.getElementById('ds-show-purchases').checked;
+        let showReturns = document.getElementById('ds-show-returns').checked;
+        let showExpenses = document.getElementById('ds-show-expenses').checked;
+        let showSuppPayments = document.getElementById('ds-show-supp-payments').checked;
+        let showTransfers = document.getElementById('ds-show-transfers').checked;
+        let showCustDebts = document.getElementById('ds-show-cust-debts').checked;
+        let showCustPayments = document.getElementById('ds-show-cust-payments').checked;
+        let showInventory = document.getElementById('ds-show-inventory').checked;
+        let showOrders = document.getElementById('ds-show-orders').checked;
+
+        let sales = (await dbOp('sales', 'getAll')).filter(x => x.date === dsDate);
+        let purcs = (await dbOp('purchases', 'getAll')).filter(x => x.date === dsDate);
+        let rets = (await dbOp('purchaseReturns', 'getAll')).filter(x => x.date === dsDate);
+        let exps = (await dbOp('expenses', 'getAll')).filter(x => x.date === dsDate);
+        let suppPays = (await dbOp('supplierPayments', 'getAll')).filter(x => x.date === dsDate);
+        let transfers = (await dbOp('cashTransfers', 'getAll')).filter(x => x.date === dsDate);
+        let custDebts = (await dbOp('customerDebts', 'getAll')).filter(x => x.date === dsDate);
+        let custPays = (await dbOp('customerPayments', 'getAll')).filter(x => x.date === dsDate);
+        let inventoryVals = (await dbOp('inventoryValuations', 'getAll')).filter(x => x.date === dsDate);
+        let supplierOrders = (await dbOp('supplierOrders', 'getAll')).filter(x => x.orderDate === dsDate || x.deliveryDate === dsDate);
+
+        let sups = await calcSupplierBalances();
+        let totalSupDebt = sups.reduce((a,b)=>a+b.curBal,0);
+        let totalCustDebt = await getLastCustomerTotalDebt();
+        let tBal = await getTreasuryBalance();
+
+        // جلب آخر قيمة مسجلة لتقييم وجرد المخزون يدوي لدمجها ضمن التقرير اليومي الشامل
+        let invs = await dbOp('inventoryValuations', 'getAll');
+        let totalInventory = 0;
+        if(invs.length) {
+            invs.sort((a,b) => new Date(a.date) - new Date(b.date));
+            totalInventory = Number(invs[invs.length - 1].value || 0);
+        }
+
+        let dictEmps = await getDict('employees');
+        let dictSups = await getDict('suppliers');
+        let dictCusts = await getDict('customers');
+
+        let h = `
+        <div style="font-family:'Cairo', sans-serif; padding:5px; line-height: 1.35;">
+            <div style="text-align:center; margin-bottom:12px; border-bottom:2px solid var(--primary); padding-bottom:8px;">
+                <h3 style="margin:0; color:var(--primary); font-weight:700; font-size:1.25rem;">الملخص المالي والتشغيلي لليوم</h3>
+                <p style="margin:2px 0 0 0; font-size:0.9rem; font-weight:bold; color:var(--text-muted);">لتاريخ: ${new Date(dsDate).toLocaleDateString('ar-EG', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</p>
+            </div>
+
+            <div class="grid-cards" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:15px;">
+                <div class="stat-card" style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#0369a1; font-weight:bold; font-size:0.8rem;">رصيد الخزينة الحالي</div>
+                    <div class="stat-value" style="color:#0284c7; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(tBal)}</div>
+                </div>
+                <div class="stat-card" style="background:#fee2e2; border:1px solid #fecaca; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#b91c1c; font-weight:bold; font-size:0.8rem;">ذمم الموردين بالخارج</div>
+                    <div class="stat-value" style="color:#dc2626; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(totalSupDebt)}</div>
+                </div>
+                <div class="stat-card" style="background:#fef3c7; border:1px solid #fde68a; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#b45309; font-weight:bold; font-size:0.8rem;">ديون العملاء (آخر جرد)</div>
+                    <div class="stat-value" style="color:#d97706; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(totalCustDebt)}</div>
+                </div>
+                <div class="stat-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#166534; font-weight:bold; font-size:0.8rem;">قيمة المخزون (آخر جرد)</div>
+                    <div class="stat-value" style="color:#15803d; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(totalInventory)}</div>
+                </div>
+            </div>
+        `;
+
+        if (showSales) {
+            let totSales = sales.reduce((a,b)=>a+Number(b.amount),0);
+            let salesGroup = {};
+            sales.forEach(s => {
+                let emp = dictEmps[s.employeeId] || 'غير معروف';
+                if(!salesGroup[emp]) salesGroup[emp] = 0;
+                salesGroup[emp] += Number(s.amount);
+            });
+
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:var(--primary); color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🛒 حركات ومبيعات اليوم الموردة للدرج</span>
+                    <span>مجموع مبيعات الخزينة لليوم: ${formatMoney(totSales)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(Object.keys(salesGroup).length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد مبيعات جارية مسجلة اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:4px 6px; text-align:right;">الموظف المستلم</th><th style="padding:4px 6px; text-align:left;">مجموع السحب والشيفت المالي</th></tr>
+                    </thead>
+                    <tbody>`;
+                for(let emp in salesGroup) {
+                    h += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 6px;">${emp}</td><td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(salesGroup[emp])}</td></tr>`;
+                }
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showPurchases) {
+            let totPurc = purcs.reduce((a,b)=>a+Number(b.totalValue),0);
+            let purcsGroup = {};
+            purcs.forEach(p => {
+                let sup = dictSups[p.supplierId] || 'غير معروف';
+                if(!purcsGroup[sup]) purcsGroup[sup] = 0;
+                purcsGroup[sup] += Number(p.totalValue);
+            });
+
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#1e293b; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📦 المشتريات اليومية (الآجلة)</span>
+                    <span>إجمالي المشتريات: ${formatMoney(totPurc)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(Object.keys(purcsGroup).length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد فواتير توريد اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:4px 6px; text-align:right;">المورد المستلم منه</th><th style="padding:4px 6px; text-align:left;">إجمالي قيمة الفواتير</th></tr>
+                    </thead>
+                    <tbody>`;
+                for(let sup in purcsGroup) {
+                    h += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 6px;">${sup}</td><td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(purcsGroup[sup])}</td></tr>`;
+                }
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showReturns) {
+            let totRet = rets.reduce((a,b)=>a+Number(b.returnValue),0);
+            let retsGroup = {};
+            rets.forEach(r => {
+                let sup = dictSups[r.supplierId] || 'غير معروف';
+                if(!retsGroup[sup]) retsGroup[sup] = 0;
+                retsGroup[sup] += Number(r.returnValue);
+            });
+
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#475569; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>↩️ مرتجع المشتريات اليومية (تأثير حساب المورد)</span>
+                    <span>إجمالي المرتجعات: ${formatMoney(totRet)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(Object.keys(retsGroup).length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد مرتجعات مشتريات اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:4px 6px; text-align:right;">المورد المسترد منه</th><th style="padding:4px 6px; text-align:left;">قيمة المرتجع المالي</th></tr>
+                    </thead>
+                    <tbody>`;
+                for(let sup in retsGroup) {
+                    h += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 6px;">${sup}</td><td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(retsGroup[sup])}</td></tr>`;
+                }
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showExpenses) {
+            let totExps = exps.reduce((a,b)=>a+Number(b.amount),0);
+            let expsGroup = {};
+            exps.forEach(e => {
+                let cat = e.category || 'غير محدد';
+                if(!expsGroup[cat]) expsGroup[cat] = 0;
+                expsGroup[cat] += Number(e.amount);
+            });
+
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#b91c1c; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>💸 المصروفات والمنصرف التشغيلي لليوم</span>
+                    <span>مجموع النثريات المصروفة: ${formatMoney(totExps)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(Object.keys(expsGroup).length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لم يتم تسجيل أي سندات صرف اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:4px 6px; text-align:right;">التصنيف الجاري</th><th style="padding:4px 6px; text-align:left;">إجمالي المبالغ المنصرفة</th></tr>
+                    </thead>
+                    <tbody>`;
+                for(let cat in expsGroup) {
+                    h += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 6px;">${cat}</td><td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(expsGroup[cat])}</td></tr>`;
+                }
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showSuppPayments) {
+            let totSuppPays = suppPays.reduce((a,b)=>a+Number(b.amount),0);
+            let suppPaysGroup = {};
+            suppPays.forEach(p => {
+                let sup = dictSups[p.supplierId] || 'غير معروف';
+                if(!suppPaysGroup[sup]) suppPaysGroup[sup] = 0;
+                suppPaysGroup[sup] += Number(p.amount);
+            });
+
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#059669; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🏭 المدفوعات الجارية للموردين (خصماً من الخزينة)</span>
+                    <span>مجموع المدفوعات للموردين: ${formatMoney(totSuppPays)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(Object.keys(suppPaysGroup).length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لم يتم سداد أي دفعات للموردين اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:4px 6px; text-align:right;">الجهة الموردة</th><th style="padding:4px 6px; text-align:left;">إجمالي المبالغ المسددة كاش</th></tr>
+                    </thead>
+                    <tbody>`;
+                for(let sup in suppPaysGroup) {
+                    h += `<tr style="border-bottom:1px solid var(--border);"><td style="padding:4px 6px;">${sup}</td><td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(suppPaysGroup[sup])}</td></tr>`;
+                }
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showTransfers) {
+            let totTrans = transfers.reduce((a,b)=>a+Number(b.amount),0);
+            
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#2563eb; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>🔄 التحويلات النقدية الجارية بين الخزائن</span>
+                    <span>مجموع التحويلات: ${formatMoney(totTrans)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(transfers.length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد تحويلات مالية اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+                            <th style="padding:4px 6px; text-align:right;">من خزانة</th>
+                            <th style="padding:4px 6px; text-align:right;">إلى خزانة</th>
+                            <th style="padding:4px 6px; text-align:right;">طريقة التحويل</th>
+                            <th style="padding:4px 6px; text-align:right;">المندوب</th>
+                            <th style="padding:4px 6px; text-align:left;">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                transfers.forEach(t => {
+                    let agentName = t.deliveryAgent ? t.deliveryAgent : '---';
+                    h += `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 6px;">${t.fromTreasury}</td>
+                        <td style="padding:4px 6px;">${t.toTreasury}</td>
+                        <td style="padding:4px 6px;">${t.method || 'نقدي'}</td>
+                        <td style="padding:4px 6px;">${agentName}</td>
+                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(t.amount)}</td>
+                    </tr>`;
+                });
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showCustDebts) {
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#ca8a04; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📊 جرد وتراكم ديون العملاء الإجمالية يدوياً</span>
+                    <span>سجلات الجرد المتاحة: ${custDebts.length}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(custDebts.length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لم يتم حفظ أي جرد لديون العملاء اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+                            <th style="padding:4px 6px; text-align:right;">البيان والملاحظات</th>
+                            <th style="padding:4px 6px; text-align:left;">الدين الكلي المستحق</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                custDebts.forEach(d => {
+                    h += `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 6px;">${d.notes || 'جرد ذمم العملاء'}</td>
+                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(d.totalDebt)}</td>
+                    </tr>`;
+                });
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showCustPayments) {
+            let totCustPays = custPays.reduce((a,b)=>a+Number(b.amount),0);
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#0284c7; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>👥 التحصيلات المقبوضة من ديون العملاء (إرشادية مستقلة)</span>
+                    <span>مجموع المقبوض: ${formatMoney(totCustPays)}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(custPays.length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لم يتم تسجيل أي تسديدات من عملاء اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+                            <th style="padding:4px 6px; text-align:right;">العميل المسدد</th>
+                            <th style="padding:4px 6px; text-align:right;">الملاحظات</th>
+                            <th style="padding:4px 6px; text-align:left;">المبلغ المستلم</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                custPays.forEach(p => {
+                    let name = p.customerName || dictCusts[p.customerId] || 'عميل غير معروف';
+                    h += `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 6px;">${name}</td>
+                        <td style="padding:4px 6px;">${p.notes || ''}</td>
+                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(p.amount)}</td>
+                    </tr>`;
+                });
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showInventory) {
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#16a34a; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📦 تقييم وجرد بضاعة المخزون (سجلات اليوم)</span>
+                    <span>سجلات التقييم: ${inventoryVals.length}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(inventoryVals.length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لم يتم حفظ تقييم للمخزون اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+                            <th style="padding:4px 6px; text-align:right;">حالة وتفاصيل الجرد</th>
+                            <th style="padding:4px 6px; text-align:left;">القيمة المقدرة للبضاعة</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                inventoryVals.forEach(iv => {
+                    h += `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 6px;">${iv.notes || 'تقييم جاري للمخازن'}</td>
+                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(iv.value)}</td>
+                    </tr>`;
+                });
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        if (showOrders) {
+            h += `
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:#4f46e5; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📦 طلبيات وتعهدات التوريد للموردين النشطة</span>
+                    <span>الطلبيات الجارية اليوم: ${supplierOrders.length}</span>
+                </div>
+                <div style="padding:6px; background:var(--surface);">
+            `;
+            if(supplierOrders.length === 0) {
+                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد طلبيات مدرجة أو تستحق التسليم اليوم</p>`;
+            } else {
+                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
+                    <thead>
+                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+                            <th style="padding:4px 6px; text-align:right;">المورد المستهدف</th>
+                            <th style="padding:4px 6px; text-align:right;">الحالة</th>
+                            <th style="padding:4px 6px; text-align:right;">تاريخ التسليم</th>
+                            <th style="padding:4px 6px; text-align:left;">القيمة المقدرة</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                supplierOrders.forEach(o => {
+                    let sName = dictSups[o.supplierId] || 'غير معروف';
+                    let statusTxt = o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'postponed' ? 'مؤجلة' : (o.status === 'cancelled' ? 'ملغاة' : 'مستلمة'));
+                    h += `<tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:4px 6px;">${sName}</td>
+                        <td style="padding:4px 6px;">${statusTxt}</td>
+                        <td style="padding:4px 6px;">${o.deliveryDate}</td>
+                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(o.amount)}</td>
+                    </tr>`;
+                });
+                h += `</tbody></table>`;
+            }
+            h += `</div></div>`;
+        }
+
+        h += `
+            <div style="margin-top:20px; border-top:1px dashed var(--border); padding-top:10px; text-align:center; font-size:0.75rem; color:var(--text-muted);">
+                تاريخ استخراج التقرير الفوري: ${new Date().toLocaleString('ar-EG')} | تم التوليد آلياً لغرفة الإدارة المالية بالصيدلية
+            </div>
+        </div>`;
+
+        document.getElementById('ds-results').innerHTML = h;
+    }
+
+    /* ================= IMPORT, BACKUP, SETTINGS ================= */
+    async function loadSettingsData() {
+        let sets = await dbOp('settings','getAll'); sets.forEach(s => appSettings[s.id] = s.value);
+        
+        // معطيات الربط السحابي الآمنة الافتراضية المدمجة بموجب المعطيات المزودة
+        const preConfiguredFB = {
+            apiKey: "AIzaSyB61x-z2PfkALiC49BDZIUkeVxGeLk3kes",
+            authDomain: "studio-7914917911-f06db.firebaseapp.com",
+            projectId: "studio-7914917911-f06db",
+            appId: "1:39154525515:web:c1ba11372ff9fcee4ab4ce"
+        };
+
+        if(Object.keys(appSettings).length === 0) {
+            let defs = { 
+                pharmacyName:'صيدليتي', 
+                currency:'ج.م', 
+                theme:'light', 
+                treasuryOpeningBalance:0, 
+                mainTreasury:'الخزينة الرئيسية', 
+                treasuries:['الخزينة الرئيسية','البنك'], 
+                expenseCategories:['إيجار وبدلات','رواتب ومكافآت','كهرباء ومياه','نثريات وضيافة'], 
+                employeeRoles:['صيدلي مرخص','مساعد صيدلي','محاسب إداري'],
+                firebaseEnabled: false,
+                firebaseConfig: preConfiguredFB,
+                appPin: ''
+            };
+            for(let k in defs) await dbOp('settings','add',{id:k, value:defs[k]});
+            appSettings = defs;
+        } else {
+            if (!appSettings.firebaseConfig) {
+                await dbOp('settings', 'put', { id: 'firebaseConfig', value: preConfiguredFB });
+                appSettings.firebaseConfig = preConfiguredFB;
+            }
+        }
+        currencySymbol = appSettings.currency || 'ج.م';
+        document.getElementById('pharmacy-name-display').textContent = appSettings.pharmacyName || 'صيدليتي';
+        document.documentElement.setAttribute('data-theme', appSettings.theme || 'light');
+        
+        // التحقق من تفعيل رمز الحماية وقفل التطبيق على الفور
+        checkAppPinOnLoad();
+    }
+
+    async function saveSettings(group) {
+        if(group==='general') {
+            await dbOp('settings','put',{id:'pharmacyName', value:document.getElementById('set-pharmacyName').value});
+            await dbOp('settings','put',{id:'currency', value:document.getElementById('set-currency').value});
+            await dbOp('settings','put',{id:'mainTreasury', value:document.getElementById('set-mainTreasury').value});
+            await dbOp('settings','put',{id:'treasuryOpeningBalance', value:Number(document.getElementById('set-treasuryOpeningBalance').value)});
+        } else {
+            let t = document.getElementById('set-treasuries').value.split(',').map(x=>x.trim()).filter(x=>x);
+            let e = document.getElementById('set-expenseCategories').value.split(',').map(x=>x.trim()).filter(x=>x);
+            let r = document.getElementById('set-employeeRoles').value.split(',').map(x=>x.trim()).filter(x=>x);
+            await dbOp('settings','put',{id:'treasuries', value:t}); await dbOp('settings','put',{id:'expenseCategories', value:e}); await dbOp('settings','put',{id:'employeeRoles', value:r});
+        }
+        showToast('تم حفظ الإعدادات بنجاح'); loadSettingsData();
+    }
+
+    function toggleFirebaseUI() {
+        let chk = document.getElementById('set-firebaseEnabled');
+        let fields = document.getElementById('firebase-config-fields');
+        if (chk && fields) {
+            fields.style.display = chk.checked ? 'block' : 'none';
+        }
+    }
+
+    async function saveFirebaseSettings() {
+        let enabled = document.getElementById('set-firebaseEnabled').checked;
+        let config = {
+            apiKey: document.getElementById('set-fbApiKey').value.trim(),
+            authDomain: document.getElementById('set-fbAuthDomain').value.trim(),
+            projectId: document.getElementById('set-fbProjectId').value.trim(),
+            appId: document.getElementById('set-fbAppId').value.trim()
+        };
+        
+        await dbOp('settings', 'put', { id: 'firebaseEnabled', value: enabled });
+        await dbOp('settings', 'put', { id: 'firebaseConfig', value: config });
+        
+        showToast("جاري تهيئة واختبار الربط السحابي مع Firebase...");
+        appSettings.firebaseEnabled = enabled;
+        appSettings.firebaseConfig = config;
+        
+        await initFirebase();
+        if (isFirebaseEnabled) {
+            showToast("تم التحقق وتفعيل الربط والتشغيل السحابي بنجاح", "success");
+        } else if (enabled) {
+            showToast("تعذر تأسيس اتصال، يرجى مراجعة المعطيات ومزود الشبكة", "danger");
+        }
+    }
+
+    /* ================= معالجة المزامنة السحابية (Push & Pull) ================= */
+    async function syncPushToCloud() {
+        if (!isFirebaseEnabled) {
+            showToast("الربط السحابي غير مفعل حالياً", "danger");
+            return;
+        }
+        if (!confirm("هل أنت متأكد من ترحيل وتأمين كافة الحسابات المحلية إلى السحابة؟ قد يحل هذا محل البيانات القديمة.")) return;
+        
+        showToast("جاري ترحيل ورفع قواعد البيانات سحابياً...", "info");
+        try {
+            for (let key in storeMap) {
+                let store = storeMap[key];
+                let localData = await dbOp(store, 'getAll');
+                
+                let batch = fsDb.batch();
+                let colRef = fsDb.collection(store);
+                
+                let oldDocs = await colRef.get();
+                oldDocs.forEach(doc => batch.delete(doc.ref));
+                
+                localData.forEach(doc => {
+                    let docId = String(doc.id);
+                    batch.set(colRef.doc(docId), doc);
+                });
+                await batch.commit();
+            }
+            showToast("اكتمل رفع ونسخ الملفات السحابية بأمان تام", "success");
+        } catch (err) {
+            console.error(err);
+            showToast("حدث خطأ ما في شبكة النقل: " + err.message, "danger");
+        }
+    }
+
+    async function syncPullFromCloud() {
+        if (!isFirebaseEnabled) {
+            showToast("الربط السحابي غير مفعل حالياً", "danger");
+            return;
+        }
+        if (!confirm("🚨 تحذير: سيقوم المتصفح بمسح القواعد الحالية تماماً وتنزيل النسخة السحابية المعتمدة! هل توافق؟")) return;
+        
+        showToast("جاري سحب واستيراد الدفاتر المالية السحابية للمتصفح...", "info");
+        try {
+            for (let key in storeMap) {
+                let store = storeMap[key];
+                await dbOp(store, 'clear');
+                
+                let snapshot = await fsDb.collection(store).get();
+                for (let doc of snapshot.docs) {
+                    await dbOp(store, 'put', doc.data());
+                }
+            }
+            showToast("اكتمل سحب البيانات وتحديث القواعد، جاري تجديد الشاشة...", "success");
+            setTimeout(() => location.reload(), 1500);
+        } catch (err) {
+            console.error(err);
+            showToast("حدث خطأ أثناء الاتصال بالخادم: " + err.message, "danger");
+        }
+    }
+
+    function toggleTheme() {
+        let n = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', n);
+        dbOp('settings','put',{id:'theme', value:n}); appSettings.theme = n;
+    }
+
+    async function backupData() {
+        let exp = {}; for(let k in storeMap) exp[storeMap[k]] = await dbOp(storeMap[k],'getAll'); exp['settings'] = await dbOp('settings','getAll');
+        let blob = new Blob([JSON.stringify(exp)], {type:'application/json'}); let a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `Pharmacy_Fin_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+    }
+    
+    function restoreData(e) {
+        let file = e.target.files[0]; if(!file) return; let reader = new FileReader();
+        reader.onload = async (ev) => {
+            try {
+                let data = JSON.parse(ev.target.result);
+                for(let store in data) { if(db.objectStoreNames.contains(store)) { await dbOp(store,'clear'); for(let r of data[store]) await dbOp(store,'add',r); } }
+                showToast('اكتمل استيراد النسخة الاحتياطية بنجاح، سيتم إعادة التحميل الآن'); setTimeout(()=>location.reload(), 1500);
+            } catch(err) { showToast('هيكل وهندسة الملف المرفوع غير صالحة للنظام','danger'); }
+        }; reader.readAsText(file);
+    }
+
+    async function factoryReset() {
+        if(confirm('تنبيه خطير: سيتم مسح كافة البيانات بشكل كامل! هل توافق؟') && confirm('تأكيد نهائي لمرة واحدة: لا يمكن التراجع أبداً بعد المتابعة!')) {
+            for(let k in storeMap) await dbOp(storeMap[k],'clear'); await dbOp('settings','clear');
+            showToast('تمت إعادة ضبط المصنع ومسح قواعد المتصفح'); setTimeout(()=>location.reload(), 1000);
+        }
+    }
+
+    /* ================= INITIALIZATION ================= */
+    function showSection(id) {
+        document.querySelectorAll('.page-section').forEach(el=>el.classList.remove('active'));
+        document.getElementById(`sec-${id}`).classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(el=>el.classList.remove('active'));
+        let link = document.querySelector(`[onclick="showSection('${id}')"]`);
+        if(link) { link.classList.add('active'); let textElem = link.querySelector('.nav-text'); if(textElem) document.getElementById('header-title').textContent = textElem.textContent.trim(); }
+        if(sectionLoaders[id]) sectionLoaders[id]();
+        if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('mobile-open');
+    }
+
+    setInterval(() => { document.getElementById('live-time').textContent = new Date().toLocaleString('ar-EG', {dateStyle:'full', timeStyle:'medium'}); }, 1000);
+    document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+    window.onload = async () => {
+        try {
+            await initDB(); 
+            await loadSettingsData();
+            await initFirebase();
+            const eTypes = ['Sales','Purchases','PurchaseReturns','InventoryValuations','Expenses','Suppliers','SupplierPayments','SupplierOrders','Customers','CustomerDebts','CustomerPayments','Employees','Transfers'];
+            eTypes.forEach(t => { window[`edit${t}`] = (id) => openModalForm(t.charAt(0).toLowerCase() + t.slice(1), id); window[`del${t}`] = (id) => delRecord(t.charAt(0).toLowerCase() + t.slice(1), id); });
+            window.showSubTab = function(id) { document.querySelectorAll(`#sec-${id.split('-')[0] === 'sup' ? 'suppliers' : (id.split('-')[0] === 'purc' ? 'purchases' : 'customers')} .sub-tab`).forEach(e=>e.style.display='none'); document.getElementById(id).style.display='block'; if(id==='sup-statement') renderSupplierStatement(); }
+            showSection('dashboard');
+        } catch(e) { alert('حدث خطأ غير متوقع في تهيئة قاعدة بيانات IndexedDB. يرجى التحديث أو استخدام متصفح يدعم المعايير الحديثة.'); }
+    };
+</script>
+</body>
+</html>
