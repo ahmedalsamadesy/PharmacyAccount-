@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الإدارة المالية للصيدلية</title>
+    <title id="app-tab-title">نظام الإدارة المالية للصيدلية</title>
     <!-- Google Fonts: Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- SheetJS for Excel Export & Import -->
@@ -56,12 +55,26 @@
         html, body { height: 100%; font-family: var(--font-family); background: var(--bg); color: var(--text); overflow: hidden; }
         a { text-decoration: none; color: inherit; }
         
+        [data-theme="dark"] body { background: var(--bg); color: var(--text); }
+        [data-theme="dark"] .card, [data-theme="dark"] .stat-card { background: var(--surface); color: var(--text); border-color: var(--border); }
+        [data-theme="dark"] .form-control { background: #2d2d2d; color: var(--text); border-color: var(--border); }
+        [data-theme="dark"] .data-table th { background: #2d2d2d; color: var(--text-muted); }
+        [data-theme="dark"] .data-table td { color: var(--text); }
+        [data-theme="dark"] .data-table tbody tr:nth-child(even) { background: var(--table-stripe); }
+        [data-theme="dark"] .live-time { background: var(--surface); color: var(--text); border-color: var(--border); }
+        [data-theme="dark"] .fs-row { border-bottom-color: var(--border); }
+        [data-theme="dark"] .fs-subtotal { background: #444; color: var(--text); }
+        [data-theme="dark"] .fs-total { background: #111; color: #fff; }
+        [data-theme="dark"] .close-btn { color: var(--text-muted); }
+        [data-theme="dark"] select option { background: var(--surface); color: var(--text); }
+        [data-theme="dark"] .filter-bar { background: var(--surface); border-color: var(--border); }
+
         /* ================= PIN LOCK SCREEN ================= */
         .pin-lock-screen {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
             z-index: 10000;
             display: flex;
             align-items: center;
@@ -96,7 +109,6 @@
         .nav-icon { font-size: 1.2rem; min-width: 24px; text-align: center; }
         .nav-text { transition: opacity 0.3s; }
 
-        /* Collapsed Sidebar */
         .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
         .sidebar.collapsed .sidebar-header { padding: 20px 0; font-size: 0; }
         .sidebar.collapsed .sidebar-header::before { content: '💊'; font-size: 1.5rem; }
@@ -125,6 +137,7 @@
         .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background: var(--primary); }
         .stat-title { font-size: 1rem; color: var(--text-muted); margin-bottom: 10px; }
         .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+        .stat-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 5px; }
         
         .btn { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-family: inherit; font-weight: 600; font-size: 0.95rem; transition: filter 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
         .btn:hover { filter: brightness(0.9); }
@@ -189,6 +202,12 @@
         .bar { width: 100%; background: var(--primary); border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 2px; }
         .bar-label { font-size: 0.8rem; margin-top: 5px; color: var(--text-muted); white-space: nowrap; }
 
+        .settings-nav-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        .settings-tab-btn { padding: 10px 15px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .settings-tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .settings-tab-content { display: none; }
+        .settings-tab-content.active { display: block; }
+
         @media (max-width: 768px) {
             .sidebar { position: fixed; right: 0; transform: translateX(100%); height: 100%; width: 260px !important; }
             .sidebar.mobile-open { transform: translateX(0); }
@@ -228,6 +247,7 @@
             <li class="nav-item"><a class="nav-link" onclick="showSection('treasury')"><span class="nav-icon">🏦</span> <span class="nav-text">الخزينة</span></a></li>
             <li class="nav-item"><a class="nav-link" onclick="showSection('finalAccount')"><span class="nav-icon">📋</span> <span class="nav-text">الحساب الختامي</span></a></li>
             <li class="nav-item"><a class="nav-link" onclick="showSection('dailySummary')"><span class="nav-icon">📅</span> <span class="nav-text">الملخص اليومي</span></a></li>
+            <li class="nav-item"><a class="nav-link" onclick="showSection('monthlySummary')"><span class="nav-icon">🗓️</span> <span class="nav-text">الملخص الشهري</span></a></li>
             <li class="nav-item"><a class="nav-link" onclick="showSection('reports')"><span class="nav-icon">📈</span> <span class="nav-text">التقارير المتقدمة</span></a></li>
             <li class="nav-item"><a class="nav-link" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> <span class="nav-text">الإعدادات</span></a></li>
         </ul>
@@ -254,7 +274,11 @@
                 <div class="grid-cards">
                     <div class="stat-card"><div class="stat-title">رصيد الخزينة الرئيسية</div><div class="stat-value text-success" id="dash-treasury">0</div></div>
                     <div class="stat-card"><div class="stat-title">إجمالي ديون الموردين</div><div class="stat-value text-danger" id="dash-supplier-debt">0</div></div>
-                    <div class="stat-card"><div class="stat-title">ديون العملاء الإجمالية (آخر تسجيل)</div><div class="stat-value text-warning" id="dash-customer-debt">0</div></div>
+                    <div class="stat-card">
+                        <div class="stat-title">ديون العملاء الإجمالية</div>
+                        <div class="stat-value text-warning" id="dash-customer-debt">0</div>
+                        <div class="stat-meta" id="dash-customer-debt-meta">تاريخ آخر تحديث: --</div>
+                    </div>
                     <div class="stat-card"><div class="stat-title">مبيعات الشهر</div><div class="stat-value" id="dash-sales">0</div></div>
                     <div class="stat-card"><div class="stat-title">مشتريات الشهر</div><div class="stat-value" id="dash-purchases">0</div></div>
                     <div class="stat-card"><div class="stat-title">مصروفات الشهر</div><div class="stat-value" id="dash-expenses">0</div></div>
@@ -288,21 +312,26 @@
                 </div>
             </section>
             
-            <section id="sec-expenses" class="page-section"><div class="card" id="expenses-container"></div></section>
+            <section id="sec-expenses" class="page-section">
+                <div id="expenses-cards"></div>
+                <div class="card" id="expenses-container"></div>
+            </section>
 
             <section id="sec-suppliers" class="page-section">
                 <div id="suppliers-alerts"></div>
                 <div id="suppliers-cards"></div>
                 <div class="card">
                     <div style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
-                        <button class="btn btn-primary" onclick="showSubTab('sup-master')">بيانات الموردين</button>
-                        <button class="btn btn-secondary" onclick="showSubTab('sup-payments')">دفعات الموردين</button>
-                        <button class="btn btn-info" onclick="showSubTab('sup-orders')">📦 طلبيات ومتابعة التوريد</button>
-                        <button class="btn btn-warning" onclick="showSubTab('sup-statement')">🧾 كشف حساب مورد</button>
+                        <button class="btn btn-primary" onclick="showSubTab('sup-master')">🏭 بيانات الموردين</button>
+                        <button class="btn btn-info" onclick="showSubTab('sup-invoices')">🧾 فواتير المشتريات والسداد</button>
+                        <button class="btn btn-warning" onclick="showSubTab('sup-scheduler')">📅 أجندة الطلبيات والجدولة</button>
+                        <button class="btn btn-secondary" onclick="showSubTab('sup-payments')">💸 سجل المدفوعات العامة</button>
+                        <button class="btn btn-warning" onclick="showSubTab('sup-statement')">🧾 كشف حساب مورد تفصيلي</button>
                     </div>
                     <div id="sup-master" class="sub-tab"></div>
+                    <div id="sup-invoices" class="sub-tab" style="display:none;"></div>
+                    <div id="sup-scheduler" class="sub-tab" style="display:none;"></div>
                     <div id="sup-payments" class="sub-tab" style="display:none;"></div>
-                    <div id="sup-orders" class="sub-tab" style="display:none;"></div>
                     <div id="sup-statement" class="sub-tab" style="display:none;">
                         <div class="form-group" style="max-width:300px;">
                             <label>اختر المورد لعرض كشف الحساب والتحركات</label>
@@ -399,7 +428,6 @@
                             <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-cust-debts" checked> ديون العملاء (جرد)</label>
                             <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-cust-payments" checked> تحصيلات العملاء</label>
                             <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-inventory" checked> تقييم المخزون</label>
-                            <label style="font-weight:600; cursor:pointer;"><input type="checkbox" id="ds-show-orders" checked> طلبيات الموردين</label>
                         </div>
                         <button class="btn btn-primary" style="margin-top:25px;" onclick="generateDailySummary()">توليد الملخص</button>
                         <button class="btn btn-secondary" style="margin-top:25px;" onclick="printSection('ds-results-print', 'الملخص المالي اليومي للصيدلية')">🖨️ طباعة الملخص</button>
@@ -407,6 +435,25 @@
                     <div id="ds-results-print">
                         <div id="ds-results" style="padding:20px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); min-height:200px;">
                             <p class="text-muted text-center">حدد اليوم والخيارات ثم اضغط "توليد الملخص"</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="sec-monthlySummary" class="page-section">
+                <div class="card">
+                    <h3>الملخص المالي الشهري الشامل</h3>
+                    <div class="filter-bar" style="justify-content: flex-start; gap: 15px; flex-wrap: wrap;">
+                        <div class="form-group" style="margin:0;">
+                            <label>اختر الشهر والظهر</label>
+                            <input type="month" id="ms-month" class="form-control" style="width:180px;">
+                        </div>
+                        <button class="btn btn-primary" style="margin-top:25px;" onclick="generateMonthlySummary()">توليد الملخص الشهري</button>
+                        <button class="btn btn-secondary" style="margin-top:25px;" onclick="printSection('ms-results-print', 'الملخص المالي الشهري')">🖨️ طباعة الملخص</button>
+                    </div>
+                    <div id="ms-results-print">
+                        <div id="ms-results" style="padding:20px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); min-height:200px;">
+                            <p class="text-muted text-center">اختر الشهر واضغط "توليد الملخص الشهري"</p>
                         </div>
                     </div>
                 </div>
@@ -424,8 +471,10 @@
                                     <option value="purchases">تقرير المشتريات</option>
                                     <option value="purchaseReturns">تقرير مرتجعات المشتريات (تأثير مالي على المورد)</option>
                                     <option value="expenses">تقرير المصروفات</option>
+                                    <option value="supplierPayments">تقرير مدفوعات الموردين</option>
                                     <option value="transfers">تقرير التحويلات</option>
-                                    <option value="custDebts">تقرير مقارنة تراكم الديون</option>
+                                    <option value="customerPayments">تقرير تسديدات العملاء الجارية</option>
+                                    <option value="customerDebts">تقرير مقارنة تراكم الديون</option>
                                     <option value="inventoryTrend">تقرير نمو وتقييم المخزون</option>
                                 </select>
                             </div>
@@ -445,71 +494,83 @@
             </section>
 
             <section id="sec-settings" class="page-section">
-                <div class="grid-cards">
-                    <div class="card">
-                        <h3>إعدادات عامة</h3>
-                        <div class="form-group mt-3"><label>اسم الصيدلية</label><input type="text" id="set-pharmacyName" class="form-control"></div>
-                        <div class="form-group"><label>العملة</label><input type="text" id="set-currency" class="form-control" value="ج.م"></div>
-                        <div class="form-group"><label>اسم الخزينة الرئيسية (التي تعتمد عليها الحسابات)</label><input type="text" id="set-mainTreasury" class="form-control" value="الخزينة الرئيسية"></div>
-                        <div class="form-group"><label>الرصيد الافتتاحي للخزينة الرئيسية</label><input type="number" id="set-treasuryOpeningBalance" min="0" class="form-control"></div>
-                        <button class="btn btn-primary" onclick="saveSettings('general')">حفظ الإعدادات العامة</button>
-                    </div>
+                <div class="settings-nav-bar">
+                    <button class="settings-tab-btn active" onclick="showSettingsTab('set-tab-general', this)">⚙️ إعدادات عامة</button>
+                    <button class="settings-tab-btn" onclick="showSettingsTab('set-tab-security', this)">🔒 رمز PIN</button>
+                    <button class="settings-tab-btn" onclick="showSettingsTab('set-tab-cloud', this)">☁️ المزامنة السحابية</button>
+                    <button class="settings-tab-btn" onclick="showSettingsTab('set-tab-lists', this)">📋 القوائم المنسدلة</button>
+                    <button class="settings-tab-btn" onclick="showSettingsTab('set-tab-data', this)">⚠️ إدارة البيانات</button>
+                </div>
 
-                    <div class="card">
-                        <h3>قفل النظام بـ رمز PIN</h3>
-                        <div class="form-group"><label>رمز PIN الحالي (اتركه فارغاً لتعطيله في أول مرة)</label><input type="password" id="set-old-pin" class="form-control"></div>
-                        <div class="form-group"><label>رمز PIN الجديد</label><input type="password" id="set-new-pin" class="form-control" maxlength="8"></div>
-                        <button class="btn btn-warning" onclick="savePinCode()">تحديث رمز الحماية PIN</button>
-                        <p class="text-muted mt-2" style="font-size: 0.85rem;">تنبيه: في حال تفعيل الرمز، سيقفل النظام تلقائياً عند تحديث أو تحميل الصفحة مجدداً لحماية الدفاتر المالية.</p>
-                    </div>
+                <!-- Tab 1: General Settings -->
+                <div id="set-tab-general" class="settings-tab-content active card">
+                    <h3>الإعدادات العامة</h3>
+                    <div class="form-group mt-3"><label>اسم الصيدلية</label><input type="text" id="set-pharmacyName" class="form-control"></div>
+                    <div class="form-group"><label>اسم البرنامج / النظام</label><input type="text" id="set-appName" class="form-control"></div>
+                    <div class="form-group"><label>العملة</label><input type="text" id="set-currency" class="form-control" value="ج.م"></div>
+                    <div class="form-group"><label>اسم الخزينة الرئيسية (التي تعتمد عليها الحسابات)</label><input type="text" id="set-mainTreasury" class="form-control" value="الخزينة الرئيسية"></div>
+                    <div class="form-group"><label>الرصيد الافتتاحي للخزينة الرئيسية</label><input type="number" id="set-treasuryOpeningBalance" min="0" class="form-control"></div>
+                    <button class="btn btn-primary" onclick="saveSettings('general')">حفظ الإعدادات العامة</button>
+                </div>
 
-                    <div class="card" style="border: 1px solid var(--primary);">
-                        <h3 class="text-primary">☁️ إعدادات المزامنة السحابية (Firebase Firestore)</h3>
-                        <p class="text-muted mb-3" style="font-size: 0.9rem;">
-                            البرنامج مهيأ للاتصال بقاعدة بياناتك السحابية الخاصة بشكل مستقل وآمن.
-                        </p>
-                        <div class="form-group">
-                            <label style="cursor: pointer; font-weight: 600;">
-                                <input type="checkbox" id="set-firebaseEnabled" onchange="toggleFirebaseUI()"> تفعيل الربط السحابي التلقائي
-                            </label>
+                <!-- Tab 2: PIN Code -->
+                <div id="set-tab-security" class="settings-tab-content card">
+                    <h3>قفل النظام بـ رمز PIN</h3>
+                    <div class="form-group"><label>رمز PIN الحالي (اتركه فارغاً لتعطيله في أول مرة)</label><input type="password" id="set-old-pin" class="form-control"></div>
+                    <div class="form-group"><label>رمز PIN الجديد</label><input type="password" id="set-new-pin" class="form-control" maxlength="8"></div>
+                    <button class="btn btn-warning" onclick="savePinCode()">تحديث رمز الحماية PIN</button>
+                    <p class="text-muted mt-2" style="font-size: 0.85rem;">تنبيه: في حال تفعيل الرمز، سيقفل النظام تلقائياً لحين التحقق الصحيح لحماية الدفاتر المالية.</p>
+                </div>
+
+                <!-- Tab 3: Cloud Synchronization -->
+                <div id="set-tab-cloud" class="settings-tab-content card" style="border: 1px solid var(--primary);">
+                    <h3 class="text-primary">☁️ إعدادات المزامنة السحابية (Firebase Firestore)</h3>
+                    <p class="text-muted mb-3" style="font-size: 0.9rem;">
+                        البرنامج مهيأ للاتصال بقاعدة بياناتك السحابية الخاصة بشكل مستقل وبصورة دمج ذكية بالبصمة الزمنية.
+                    </p>
+                    <div class="form-group">
+                        <label style="cursor: pointer; font-weight: 600;">
+                            <input type="checkbox" id="set-firebaseEnabled" onchange="toggleFirebaseUI()"> تفعيل الربط السحابي التلقائي
+                        </label>
+                    </div>
+                    <div id="firebase-config-fields" style="display:none; transition: all 0.3s;">
+                        <div class="form-group"><label>API Key</label><input type="password" id="set-fbApiKey" class="form-control"></div>
+                        <div class="form-group"><label>Auth Domain</label><input type="text" id="set-fbAuthDomain" class="form-control"></div>
+                        <div class="form-group"><label>Project ID</label><input type="text" id="set-fbProjectId" class="form-control"></div>
+                        <div class="form-group"><label>App ID</label><input type="text" id="set-fbAppId" class="form-control"></div>
+                        
+                        <button class="btn btn-primary mb-3" onclick="saveFirebaseSettings()" style="width: 100%;">💾 اختبار وحفظ تهيئة السحابة</button>
+                        <hr style="margin:15px 0; border:0; border-top:1px solid var(--border);">
+                        <div style="display:flex; gap:10px;">
+                            <button class="btn btn-success" onclick="syncPushToCloud()" style="flex:1;">📤 رفع وتجميع البيانات للسحاب (Merge)</button>
+                            <button class="btn btn-warning" onclick="syncPullFromCloud()" style="flex:1;">📥 تنزيل وتجميع البيانات من السحاب (Merge)</button>
                         </div>
-                        <div id="firebase-config-fields" style="display:none; transition: all 0.3s;">
-                            <div class="form-group"><label>API Key</label><input type="password" id="set-fbApiKey" class="form-control"></div>
-                            <div class="form-group"><label>Auth Domain</label><input type="text" id="set-fbAuthDomain" class="form-control"></div>
-                            <div class="form-group"><label>Project ID</label><input type="text" id="set-fbProjectId" class="form-control"></div>
-                            <div class="form-group"><label>App ID</label><input type="text" id="set-fbAppId" class="form-control"></div>
-                            
-                            <button class="btn btn-primary mb-3" onclick="saveFirebaseSettings()" style="width: 100%;">💾 اختبار وحفظ تهيئة السحابة</button>
-                            <hr style="margin:15px 0; border:0; border-top:1px solid var(--border);">
-                            <div style="display:flex; gap:10px;">
-                                <button class="btn btn-success" onclick="syncPushToCloud()" style="flex:1;">📤 رفع البيانات للسحاب</button>
-                                <button class="btn btn-warning" onclick="syncPullFromCloud()" style="flex:1;">📥 سحب البيانات من السحاب</button>
-                            </div>
-                        </div>
                     </div>
+                </div>
 
-                    <div class="card">
-                        <h3>القوائم المنسدلة (افصل بفاصلة , )</h3>
-                        <div class="form-group mt-3"><label>قائمة الخزائن</label><textarea id="set-treasuries" class="form-control" rows="2"></textarea></div>
-                        <div class="form-group"><label>أقسام المصروفات</label><textarea id="set-expenseCategories" class="form-control" rows="2"></textarea></div>
-                        <div class="form-group"><label>تخصصات الموظفين</label><textarea id="set-employeeRoles" class="form-control" rows="2"></textarea></div>
-                        <button class="btn btn-primary" onclick="saveSettings('lists')">حفظ القوائم</button>
-                    </div>
+                <!-- Tab 4: Dropdowns -->
+                <div id="set-tab-lists" class="settings-tab-content card">
+                    <h3>القوائم المنسدلة (افصل بفاصلة , )</h3>
+                    <div class="form-group mt-3"><label>قائمة الخزائن</label><textarea id="set-treasuries" class="form-control" rows="2"></textarea></div>
+                    <div class="form-group"><label>أقسام المصروفات</label><textarea id="set-expenseCategories" class="form-control" rows="2"></textarea></div>
+                    <div class="form-group"><label>تخصصات الموظفين</label><textarea id="set-employeeRoles" class="form-control" rows="2"></textarea></div>
+                    <button class="btn btn-primary" onclick="saveSettings('lists')">حفظ القوائم</button>
+                </div>
 
-                    <div class="card" style="border: 1px solid var(--danger); grid-column: 1 / -1;">
-                        <h3 class="text-danger">⚠️ إدارة البيانات والنسخ الاحتياطي</h3>
-                        <p class="text-muted mb-3" style="line-height: 1.6;">
-                            <strong>تنبيه هام جداً:</strong> البيانات مسجلة داخل متصفحك الحالي فقط. إذا قمت بمسح بيانات المتصفح ستفقد جميع حساباتك للأبد.<br>
-                            <strong>يرجى أخذ نسخة احتياطية يومياً للحفاظ على أموالك!</strong>
-                        </p>
-                        <button class="btn btn-success mb-3" onclick="backupData()" style="width:100%">💾 تصدير نسخة احتياطية (JSON)</button>
-                        <div class="form-group">
-                            <label>استعادة نسخة احتياطية سابقة</label>
-                            <input type="file" id="restore-file" class="form-control" accept=".json" onchange="restoreData(event)">
-                        </div>
-                        <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
-                        <button class="btn btn-danger" onclick="factoryReset()" style="width:100%">⚠️ ضبط المصنع (مسح كل البيانات)</button>
+                <!-- Tab 5: Data Management -->
+                <div id="set-tab-data" class="settings-tab-content card" style="border: 1px solid var(--danger);">
+                    <h3 class="text-danger">⚠️ إدارة البيانات والنسخ الاحتياطي</h3>
+                    <p class="text-muted mb-3" style="line-height: 1.6;">
+                        <strong>تنبيه هام جداً:</strong> البيانات مسجلة داخل متصفحك الحالي فقط. إذا قمت بمسح بيانات المتصفح ستفقد جميع حساباتك للأبد.<br>
+                        <strong>يرجى أخذ نسخة احتياطية يومياً للحفاظ على أموالك!</strong>
+                    </p>
+                    <button class="btn btn-success mb-3" onclick="backupData()" style="width:100%">💾 تصدير نسخة احتياطية (JSON)</button>
+                    <div class="form-group">
+                        <label>استعادة نسخة احتياطية سابقة</label>
+                        <input type="file" id="restore-file" class="form-control" accept=".json" onchange="restoreData(event)">
                     </div>
+                    <hr style="margin:20px 0; border:0; border-top:1px solid var(--border);">
+                    <button class="btn btn-danger" onclick="factoryReset()" style="width:100%">⚠️ ضبط المصنع (مسح كل البيانات)</button>
                 </div>
             </section>
 
@@ -532,17 +593,116 @@
 <script>
     /* ================= SYSTEM CORE ================= */
     const DB_NAME = 'PharmacyFinDB_v2';
-    const DB_VERSION = 4; // Bumped to version 4 to support supplierOrders
+    const DB_VERSION = 5; 
     let db;
     let currencySymbol = 'ج.م';
     let appSettings = {};
+    let isUnlocked = false;
 
-    // معطيات الربط والتشغيل السحابي
     let firebaseApp = null;
     let fsDb = null;
     let isFirebaseEnabled = false;
 
-    // دالة توليد معرف عشوائي فريد لمقاومة التصادم (ID Collision) عند الرفع والتحميل من السحابة
+    function getLocalDateString(dateObj = new Date()) {
+        const offset = dateObj.getTimezoneOffset();
+        const localDate = new Date(dateObj.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+    }
+
+    const round2 = (num) => Math.round((Number(num) || 0) * 100) / 100;
+
+    /* ================= NATIVE SECURE CRYPTO SERVICE ================= */
+    async function hashPIN(pin) {
+        try {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(pin);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) {
+            return customSha256(pin); // Fallback to custom SHA256 if native Crypto API fails
+        }
+    }
+
+    /* Backwards Compatible Custom SHA-256 */
+    function customSha256(ascii) {
+        function rightRotate(value, amount) {
+            return (value >>> amount) | (value << (32 - amount));
+        }
+        let mathPow = Math.pow;
+        let maxWord = mathPow(2, 32);
+        let lengthProperty = 'length';
+        let i, j;
+        let result = '';
+        let words = [];
+        let asciiLength = ascii[lengthProperty] * 8;
+        
+        let hash = customSha256.h = customSha256.h || [];
+        let k = customSha256.k = customSha256.k || [];
+        let primeCounter = k[lengthProperty];
+
+        let isPrime = function(n) {
+            for (let factor = 2; factor * factor <= n; factor++) {
+                if (n % factor === 0) return false;
+            }
+            return true;
+        };
+
+        let getFractionalParts = function(n) {
+            return ((n - Math.floor(n)) * maxWord) | 0;
+        };
+
+        for (let candidate = 2; primeCounter < 64; candidate++) {
+            if (isPrime(candidate)) {
+                if (primeCounter < 8) {
+                    hash[primeCounter] = getFractionalParts(Math.sqrt(candidate));
+                }
+                k[primeCounter] = getFractionalParts(Math.pow(candidate, 1/3));
+                primeCounter++;
+            }
+        }
+        
+        ascii += '\x80';
+        while (ascii[lengthProperty] % 64 - 56) ascii += '\x00';
+        for (i = 0; i < ascii[lengthProperty]; i++) {
+            let j = ascii.charCodeAt(i);
+            if (j >> 8) return; 
+            words[i >> 2] |= j << ((3 - i) % 4 * 8);
+        }
+        words[words[lengthProperty]] = ((asciiLength / maxWord) | 0);
+        words[words[lengthProperty]] = (asciiLength | 0);
+        
+        for (j = 0; j < words[lengthProperty]; j += 16) {
+            let w = words.slice(j, j + 16);
+            let oldHash = hash.slice(0);
+            
+            hash = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+            
+            for (i = 0; i < 64; i++) {
+                let w16 = w[i - 16], w15 = w[i - 15], w7 = w[i - 7], w2 = w[i - 2];
+                let s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
+                let s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
+                let ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
+                let maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+                let temp1 = hash[7] + (rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25)) + ch + k[i] + (w[i] = (i < 16 ? w[i] : (w16 + s0 + w7 + s1) | 0));
+                let temp2 = (rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22)) + maj;
+                
+                hash = [(temp1 + temp2) | 0].concat(hash);
+                hash[4] = (hash[4] + temp1) | 0;
+            }
+            
+            for (i = 0; i < 8; i++) {
+                hash[i] = (hash[i] + oldHash[i]) | 0;
+            }
+        }
+        
+        for (i = 0; i < 8; i++) {
+            let s = hash[i].toString(16);
+            result += (s.length === 8 ? s : ('00000000' + s).slice(-8));
+        }
+        return result;
+    }
+
     function generateUUID() {
         if (typeof crypto.randomUUID === 'function') {
             return crypto.randomUUID();
@@ -559,16 +719,15 @@
                 {n:'employees', opts:{keyPath:'id'}},
                 {n:'suppliers', opts:{keyPath:'id'}},
                 {n:'customers', opts:{keyPath:'id'}},
-                {n:'customerDebts', opts:{keyPath:'id'}, idx:'date'}, // مخزن تراكم الديون الإجمالية اليدوية
-                {n:'customerPayments', opts:{keyPath:'id'}, idx:'date'}, // مخزن تسديدات العملاء اليدوية
+                {n:'customerDebts', opts:{keyPath:'id'}, idx:'date'},
+                {n:'customerPayments', opts:{keyPath:'id'}, idx:'date'},
                 {n:'sales', opts:{keyPath:'id'}, idx:'date'},
                 {n:'purchases', opts:{keyPath:'id'}, idx:'date'},
                 {n:'purchaseReturns', opts:{keyPath:'id'}, idx:'date'},
                 {n:'expenses', opts:{keyPath:'id'}, idx:'date'},
                 {n:'supplierPayments', opts:{keyPath:'id'}, idx:'date'},
-                {n:'inventoryValuations', opts:{keyPath:'id'}, idx:'date'}, // مخزن جرد وتقييم المخزون يدوي
-                {n:'cashTransfers', opts:{keyPath:'id'}, idx:'date'},
-                {n:'supplierOrders', opts:{keyPath:'id'}, idx:'deliveryDate'} // مخزن طلبيات الموردين المطور
+                {n:'inventoryValuations', opts:{keyPath:'id'}, idx:'date'},
+                {n:'cashTransfers', opts:{keyPath:'id'}, idx:'date'}
             ];
             stores.forEach(s => {
                 if(!db.objectStoreNames.contains(s.n)) {
@@ -581,7 +740,28 @@
         req.onerror = (e) => reject(e.error);
     });
 
-    // تفعيل وتهيئة Firebase سحابياً
+    const fetchStoreData = (storeName, startDate = null, endDate = null) => new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly');
+        const s = tx.objectStore(storeName);
+        let req;
+        
+        let targetIndex = null;
+        if (s.indexNames.contains('date')) targetIndex = 'date';
+
+        if (targetIndex && (startDate || endDate)) {
+            let range;
+            if (startDate && endDate) range = IDBKeyRange.bound(startDate, endDate);
+            else if (startDate) range = IDBKeyRange.lowerBound(startDate);
+            else range = IDBKeyRange.upperBound(endDate);
+            req = s.index(targetIndex).getAll(range);
+        } else {
+            req = s.getAll();
+        }
+        
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+
     async function initFirebase() {
         let configSetting = appSettings.firebaseConfig;
         let enabledSetting = appSettings.firebaseEnabled;
@@ -610,29 +790,47 @@
         const s = tx.objectStore(store);
         let req;
         if(op==='getAll') req = s.getAll();
-        else if(op==='get') req = s.get(data);
+        else if(op==='get') {
+            let lookupId = data;
+            if (typeof data === 'string' && data.trim() !== '' && !isNaN(data)) {
+                lookupId = Number(data);
+            }
+            req = s.get(lookupId);
+        }
         else if(op==='add') {
             if(!data.id) data.id = generateUUID();
+            data.lastUpdated = Date.now();
             req = s.add(data);
         }
         else if(op==='put') {
             if(!data.id) data.id = generateUUID();
+            data.lastUpdated = Date.now();
+            
+            if (typeof data.id === 'string' && data.id.trim() !== '' && !isNaN(data.id)) {
+                data.id = Number(data.id);
+            }
+            
             req = s.put(data);
         }
-        else if(op==='delete') req = s.delete(data);
+        else if(op==='delete') {
+            let lookupId = data;
+            if (typeof data === 'string' && data.trim() !== '' && !isNaN(data)) {
+                lookupId = Number(data);
+            }
+            req = s.delete(lookupId);
+        }
         else if(op==='clear') req = s.clear();
         
         req.onsuccess = async () => {
             let result = req.result;
             resolve(result);
 
-            // المزامنة اللحظية الخلفية الهادئة مع Firebase Firestore عند حدوث عمليات كتابة محلية ناجحة
             if (isFirebaseEnabled && !['settings'].includes(store)) {
                 try {
                     let docId = "";
                     if (op === 'add' || op === 'put') {
                         docId = String(data.id || result);
-                        await fsDb.collection(store).doc(docId).set(data);
+                        await fsDb.collection(store).doc(docId).set(data, { merge: true });
                     } else if (op === 'delete') {
                         docId = String(data);
                         await fsDb.collection(store).doc(docId).delete();
@@ -643,7 +841,7 @@
                         await batch.commit();
                     }
                 } catch (fsErr) {
-                    console.warn("Firestore sync failed (offline status):", fsErr);
+                    console.warn("Firestore sync update failed (device offline):", fsErr);
                 }
             }
         };
@@ -666,6 +864,7 @@
 
     const showToast = (msg, type='success') => {
         const c = document.getElementById('toast-container');
+        if (!c) return;
         const t = document.createElement('div');
         t.className = `toast toast-${type}`;
         t.textContent = msg;
@@ -674,15 +873,13 @@
     };
 
     const formatMoney = (amount) => Number(amount||0).toLocaleString('ar-EG', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ' + currencySymbol;
-    const exportToExcel = (tableId, fname) => { let tbl = document.getElementById(tableId); if(tbl) XLSX.writeFile(XLSX.utils.table_to_book(tbl,{sheet:"Data"}), `${fname}_${new Date().toISOString().slice(0,10)}.xlsx`); };
+    const exportToExcel = (tableId, fname) => { let tbl = document.getElementById(tableId); if(tbl) XLSX.writeFile(XLSX.utils.table_to_book(tbl,{sheet:"Data"}), `${fname}_${getLocalDateString()}.xlsx`); };
     
-    // محرك الطباعة الشامل والمعدل لخدمة الجداول والتقارير بأعلى دقة ممكنة ومخصصة
     const printSection = (id, title) => {
         let elem = document.getElementById(id);
         if(!elem) return;
         let clone = elem.cloneNode(true);
         
-        // إعداد العنوان المخصص المضاف لكشف حساب المورد باسم المورد المحدد
         if (id === 'sup-stmt-wrapper') {
             let select = document.getElementById('sup-stmt-select');
             if (select && select.value) {
@@ -690,7 +887,6 @@
             }
         }
 
-        // الحذف المباشر الموثوق لعمود الإجراءات بالاعتماد على الفئة لحماية محاذاة الجداول
         clone.querySelectorAll('.actions-header, .actions-cell').forEach(e => e.remove());
 
         let content = clone.innerHTML;
@@ -714,20 +910,15 @@
                     th, td { border: 1px solid #000; padding: 6px 8px; text-align: right; word-wrap: break-word; }
                     th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; }
                     tfoot th, tfoot td { background-color: #e9ecef !important; font-weight: bold !important; border-top: 2px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .text-success { color: #198754 !important; font-weight: bold; }
-                    .text-danger { color: #dc3545 !important; font-weight: bold; }
-                    .text-warning { color: #d39e00 !important; font-weight: bold; }
-                    tr { page-break-inside: avoid; }
                     tr:nth-child(even) { background-color: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     .fs-container { border: 1px solid #000; margin-bottom: 15px; font-size: 13px; border-radius: 4px; overflow: hidden; }
                     .fs-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #ccc; }
                     .fs-row:last-child { border-bottom: none; }
                     .fs-header { background: #f0f0f0 !important; font-weight: bold; font-size: 14px; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #000; }
-                    .fs-subtotal { background: #fdfdfd !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .fs-total { background: #e0e0e0 !important; font-weight: bold; font-size: 16px; border-top: 2px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .fs-subtotal { background: #fdfdfd !important; font-weight: bold; }
+                    .fs-total { background: #e0e0e0 !important; font-weight: bold; font-size: 16px; border-top: 2px solid #000; }
                     .grid-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; }
-                    .stat-card { border: 1px solid #000; padding: 8px; text-align: center; border-radius: 4px; background: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .stat-title { font-size: 11px; color: #333; margin-bottom: 3px; }
+                    .stat-card { border: 1px solid #000; padding: 8px; text-align: center; border-radius: 4px; background: #fafafa !important; }
                     .stat-value { font-size: 13px; font-weight: bold; }
                 </style>
             </head>
@@ -750,15 +941,38 @@
         }, 500);
     };
 
+    /* ================= SELECT DROPDOWN FILTER FEATURE ================= */
+    function filterSelectOptions(inputElem, selectId) {
+        let filter = inputElem.value.toLowerCase();
+        let select = document.getElementById(selectId);
+        if(!select) return;
+        let options = select.options;
+        for(let i = 0; i < options.length; i++) {
+            let txt = options[i].text.toLowerCase();
+            if(options[i].value === "") {
+                options[i].style.display = ""; 
+                continue;
+            }
+            if(txt.includes(filter)) {
+                options[i].style.display = "";
+            } else {
+                options[i].style.display = "none";
+            }
+        }
+    }
+
     /* ================= PIN SYSTEM LOGIC ================= */
     async function checkAppPinOnLoad() {
-        let pinEnabled = appSettings.appPin ? true : false;
+        let pinEnabled = (appSettings.appPinHash) ? true : false;
         let overlay = document.getElementById('pin-lock-overlay');
         if (pinEnabled) {
+            isUnlocked = false;
             overlay.style.display = 'flex';
             document.getElementById('app-pin-input').focus();
         } else {
+            isUnlocked = true;
             overlay.style.display = 'none';
+            showSection('dashboard');
         }
     }
 
@@ -768,14 +982,28 @@
         }
     }
 
-    function validateAndUnlock() {
+    async function validateAndUnlock() {
         let input = document.getElementById('app-pin-input').value;
-        let realPin = appSettings.appPin || '';
-        if (input === realPin) {
+        let inputHashNative = await hashPIN(input);
+        let inputHashCustom = customSha256(input);
+        let realPinHash = appSettings.appPinHash || '';
+        
+        // Multi-level fallback comparison (Native Secure, Legacy Custom, Plain Text)
+        if (inputHashNative === realPinHash || inputHashCustom === realPinHash || input === realPinHash) {
+            isUnlocked = true;
             document.getElementById('pin-lock-overlay').style.display = 'none';
             document.getElementById('pin-error-msg').style.display = 'none';
             showToast('تم فك القفل بنجاح', 'success');
+            
+            // Auto-upgrade previous custom hashes or plain-texts to standard native secure hash
+            if (realPinHash !== inputHashNative) {
+                await dbOp('settings', 'put', { id: 'appPinHash', value: inputHashNative });
+                appSettings.appPinHash = inputHashNative;
+            }
+            
+            showSection('dashboard');
         } else {
+            isUnlocked = false;
             document.getElementById('pin-error-msg').style.display = 'block';
             document.getElementById('app-pin-input').value = '';
             document.getElementById('app-pin-input').focus();
@@ -785,13 +1013,19 @@
     async function savePinCode() {
         let oldPinInput = document.getElementById('set-old-pin').value;
         let newPinInput = document.getElementById('set-new-pin').value.trim();
-        let currentPin = appSettings.appPin || '';
+        let currentPinHash = appSettings.appPinHash || '';
 
-        if (currentPin !== '' && oldPinInput !== currentPin) {
-            return showToast('رمز PIN الحالي المدخل غير صحيح!', 'danger');
+        if (currentPinHash !== '') {
+            let oldHashNative = await hashPIN(oldPinInput);
+            let oldHashCustom = customSha256(oldPinInput);
+            if (oldHashNative !== currentPinHash && oldHashCustom !== currentPinHash && oldPinInput !== currentPinHash) {
+                return showToast('رمز PIN الحالي المدخل غير صحيح!', 'danger');
+            }
         }
 
-        await dbOp('settings', 'put', { id: 'appPin', value: newPinInput });
+        let newHashedPin = await hashPIN(newPinInput);
+        await dbOp('settings', 'put', { id: 'appPinHash', value: newHashedPin });
+        
         showToast('تم تحديث رمز الحماية بنجاح', 'success');
         document.getElementById('set-old-pin').value = '';
         document.getElementById('set-new-pin').value = '';
@@ -805,6 +1039,7 @@
             h += `<div class="stat-card" style="padding:15px;">
                     <div class="stat-title" style="font-size:0.95rem;">${c.title}</div>
                     <div class="stat-value ${c.color||''}">${c.value}</div>
+                    ${c.meta ? `<div class="stat-meta">${c.meta}</div>` : ''}
                   </div>`;
         });
         h += `</div>`;
@@ -844,13 +1079,12 @@
             });
         }
 
-        // Totals Row
         let footerHTML = '';
         if (data.length > 0 && hasMoneyCol) {
             footerHTML += `<tfoot><tr>`;
             cols.forEach((c, i) => {
                 if (c.format === 'money' && c.key !== 'runBal' && c.key !== 'diff') {
-                    let sum = data.reduce((acc, row) => acc + (Number(row[c.key]) || 0), 0);
+                    let sum = data.reduce((acc, row) => round2(acc + (Number(row[c.key]) || 0)), 0);
                     footerHTML += `<td>${formatMoney(sum)}</td>`;
                 } else if (i === 0) {
                     footerHTML += `<td>الإجمالي الكلي</td>`;
@@ -956,7 +1190,6 @@
         expenses:'expenses', 
         suppliers:'suppliers', 
         supplierPayments:'supplierPayments', 
-        supplierOrders: 'supplierOrders', // Added for orders
         customers:'customers', 
         customerDebts:'customerDebts', 
         customerPayments:'customerPayments', 
@@ -967,24 +1200,35 @@
     
     const formsConfig = {
         sales: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'employeeId',t:'select',l:'الموظف',r:1,opts:[]},{n:'amount',t:'number',l:'إجمالي المبلغ المورد للدرج',r:1,min:0},{n:'treasury',t:'select',l:'إلى خزينة',r:1,opts:[]}],
-        purchases: [{n:'invoiceNo',t:'text',l:'رقم الفاتورة التوريدية',r:1},{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد المستحق له الفاتورة',r:1,opts:[]},{n:'totalValue',t:'number',l:'القيمة الإجمالية للفاتورة الكلية',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات'}],
+        purchases: [
+            {n:'invoiceNo',t:'text',l:'رقم الفاتورة التوريدية',r:1},
+            {n:'date',t:'date',l:'التاريخ',r:1},
+            {n:'supplierId',t:'select',l:'المورد المستحق له الفاتورة',r:1,opts:[]},
+            {n:'totalValue',t:'number',l:'القيمة الإجمالية للفاتورة الكلية',r:1,min:0},
+            {n:'paidAmount',t:'number',l:'المبلغ المدفوع فوراً (اختياري)',r:0,min:0},
+            {n:'notes',t:'textarea',l:'ملاحظات'}
+        ],
         purchaseReturns: [{n:'invoiceNo',t:'text',l:'رقم الفاتورة المرجعي',r:1},{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد',r:1,opts:[]},{n:'itemName',t:'text',l:'اسم الصنف المرتجع',r:1},{n:'quantity',t:'number',l:'العدد',r:1,min:1},{n:'returnValue',t:'number',l:'قيمة المرتجع (تخصم من حساب المورد ولا تؤثر في الخزينة)',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات الإرجاع المعتمدة'}],
         expenses: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'amount',t:'number',l:'مبلغ المصروف',r:1,min:0},{n:'treasury',t:'select',l:'خصماً من الخزينة',r:1,opts:[]},{n:'category',t:'select',l:'التصنيف القطاعي للنفقة',r:1,opts:[]},{n:'description',t:'text',l:'البيان والتفصيل المالي',r:1},{n:'paymentMethod',t:'select',l:'طريقة الدفع والمخرج',r:1,opts:[{v:'نقدي',l:'نقدي'},{v:'فيزا',l:'فيزا'}]}],
-        suppliers: [{n:'name',t:'text',l:'اسم المورد والجهة',r:1},{n:'phone',t:'text',l:'الهاتف والاتصال',r:1},{n:'address',t:'text',l:'العنوان الوطني للشركة'},{n:'openingBalance',t:'number',l:'رصيد افتتاحي (مستحق له)',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات وإيضاحات'}],
-        supplierPayments: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد المستلم',r:1,opts:[]},{n:'amount',t:'number',l:'المبلغ المدفوع للمندوب',r:1,min:0},{n:'treasury',t:'select',l:'خصماً من خزينة',r:1,opts:[]},{n:'method',t:'select',l:'طريقة السداد للجهة',r:1,opts:[{v:'نقدي',l:'نقدي'},{v:'شيك',l:'شيك'},{v:'تحويل',l:'تحويل بنكي'}]},{n:'notes',t:'textarea',l:'ملاحظات'}],
-        supplierOrders: [
-            {n:'orderDate',t:'date',l:'تاريخ الطلبية',r:1},
-            {n:'deliveryDate',t:'date',l:'تاريخ التسليم المتوقع',r:1},
-            {n:'supplierId',t:'select',l:'المورد المستهدف للطلبية',r:1,opts:[]},
-            {n:'amount',t:'number',l:'القيمة التقديرية للطلبية',r:1,min:0},
-            {n:'status',t:'select',l:'حالة الطلبية الجارية',r:1,opts:[
-                {v:'pending',l:'قيد الطلب / معلقة ⏳'},
-                {v:'postponed',l:'مؤجلة 🔁'},
-                {v:'cancelled',l:'ملغاة ❌'},
-                {v:'received',l:'تم الاستلام ✅'}
+        suppliers: [
+            {n:'name',t:'text',l:'اسم المورد والشركة',r:1},
+            {n:'phone',t:'text',l:'الهاتف والاتصال',r:1},
+            {n:'address',t:'text',l:'العنوان الوطني للشركة'},
+            {n:'orderDay',t:'select',l:'يوم الطلب الأسبوعي الدائم',r:1,opts:[
+                {v:'السبت',l:'السبت'}, {v:'الأحد',l:'الأحد'}, {v:'الإثنين',l:'الإثنين'},
+                {v:'الثلاثاء',l:'الثلاثاء'}, {v:'الأربعاء',l:'الأربعاء'}, {v:'الخميس',l:'الخميس'},
+                {v:'الجمعة',l:'الجمعة'}
             ]},
-            {n:'notes',t:'textarea',l:'تفاصيل الطلبية والأصناف'}
+            {n:'deliveryDay',t:'text',l:'يوم التوريد المتوقع (مثال: خلال ٢٤ ساعة)'},
+            {n:'collectionSystem',t:'select',l:'نظام التحصيل المالي',r:1,opts:[
+                {v:'فاتورة بفاتورة',l:'فاتورة بفاتورة'},
+                {v:'شهري',l:'شهري'},
+                {v:'مخصص',l:'نظام مخصص'}
+            ]},
+            {n:'openingBalance',t:'number',l:'رصيد افتتاحي (مستحق له)',r:1,min:0},
+            {n:'notes',t:'textarea',l:'ملاحظات وإيضاحات'}
         ],
+        supplierPayments: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'supplierId',t:'select',l:'المورد المستلم',r:1,opts:[]},{n:'amount',t:'number',l:'المبلغ المدفوع للمندوب',r:1,min:0},{n:'treasury',t:'select',l:'خصماً من خزينة',r:1,opts:[]},{n:'method',t:'select',l:'طريقة السداد للجهة',r:1,opts:[{v:'نقدي',l:'نقدي'},{v:'شيك',l:'شيك'},{v:'تحويل',l:'تحويل بنكي'}]},{n:'notes',t:'textarea',l:'ملاحظات'}],
         customers: [{n:'name',t:'text',l:'اسم العميل الكامل',r:1},{n:'phone',t:'text',l:'الهاتف والاتصال'},{n:'notes',t:'textarea',l:'ملاحظات وتصنيفات'}],
         customerDebts: [{n:'date',t:'date',l:'تاريخ الجرد والتسجيل للذمة',r:1},{n:'totalDebt',t:'number',l:'إجمالي الدين المقيد يدوياً من واقع السجلات',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات وإيضاح السجل'}],
         customerPayments: [{n:'date',t:'date',l:'التاريخ',r:1},{n:'customerName',t:'text',l:'اسم العميل (كتابة يدوية)',r:1},{n:'amount',t:'number',l:'قيمة السداد المالي (لا تؤثر بالخزينة)',r:1,min:0},{n:'remainingDebt',t:'number',l:'المتبقي على العميل المستهدف يدوياً',r:1,min:0},{n:'notes',t:'textarea',l:'ملاحظات السداد'}],
@@ -993,7 +1237,7 @@
         transfers: [
             {n:'date',t:'date',l:'التاريخ',r:1},
             {n:'fromTreasury',t:'select',l:'من الخزانة المصدر',r:1,opts:[]},
-            {n:'toTreasury',t:'select',l:'إلى الخزانة المستلمة النقدية',r:1,opts:[]},
+            {n:'toTreasury',t:'select',l:'إلى الخزانة المستقبلة النقدية',r:1,opts:[]},
             {n:'amount',t:'number',l:'المبلغ المنقول',r:1,min:0},
             {n:'method',t:'select',l:'طريقة التحويل النبضي كاش',r:1,opts:[
                 {v:'تحويل نقدي',l:'تحويل نقدي'},
@@ -1009,11 +1253,43 @@
     const getOpts = async (store, lKey='name', vKey='id') => (await dbOp(store,'getAll')).map(i=>({v:i[vKey], l:i[lKey]}));
     const getSettingOpts = (key) => (appSettings[key]||[]).map(i=>({v:i,l:i}));
 
+    async function checkPriorUnpaidInvoices(supplierId) {
+        if (!supplierId) return;
+        let purchases = await dbOp('purchases', 'getAll');
+        let unpaid = purchases.filter(x => String(x.supplierId) === String(supplierId) && x.paymentStatus !== 'paid');
+        let alertContainer = document.getElementById('accumulated-invoice-alert');
+        if (!alertContainer) {
+            let modalBody = document.getElementById('modal-body');
+            alertContainer = document.createElement('div');
+            alertContainer.id = 'accumulated-invoice-alert';
+            alertContainer.style.margin = '10px 0';
+            alertContainer.style.padding = '10px';
+            alertContainer.style.borderRadius = 'var(--radius)';
+            alertContainer.style.background = 'rgba(220, 53, 69, 0.1)';
+            alertContainer.style.border = '1px solid var(--danger)';
+            alertContainer.style.color = 'var(--danger)';
+            alertContainer.style.fontSize = '0.9rem';
+            alertContainer.style.display = 'none';
+            modalBody.insertBefore(alertContainer, modalBody.firstChild);
+        }
+        if (unpaid.length > 0) {
+            let totalUnpaid = unpaid.reduce((sum, item) => round2(sum + (Number(item.totalValue) - (Number(item.paidAmount) || 0))), 0);
+            alertContainer.innerHTML = `⚠️ تنبيه هام: هذا المورد لديه عدد (${unpaid.length}) فواتير سابقة غير مسددة بالكامل بقيمة تراكمية متبقية تبلغ: <strong>${formatMoney(totalUnpaid)}</strong>`;
+            alertContainer.style.display = 'block';
+        } else {
+            alertContainer.style.display = 'none';
+        }
+    }
+
     async function openModalForm(type, id=null) {
+        if (!isUnlocked) {
+            showToast("النظام مقفل حالياً، يرجى تسجيل الدخول أولاً.", "danger");
+            return;
+        }
         currentFormType = type; currentEditId = id;
         
         if(['sales','transfers'].includes(type)) { let e = await getOpts('employees'); if(type==='sales') formsConfig.sales.find(x=>x.n==='employeeId').opts=e; else formsConfig.transfers.find(x=>x.n==='employeeId').opts=e; }
-        if(['purchases','purchaseReturns','supplierPayments','supplierOrders'].includes(type)) formsConfig[type].find(x=>x.n==='supplierId').opts = await getOpts('suppliers');
+        if(['purchases','purchaseReturns','supplierPayments'].includes(type)) formsConfig[type].find(x=>x.n==='supplierId').opts = await getOpts('suppliers');
         if(type==='expenses') formsConfig.expenses.find(x=>x.n==='category').opts = getSettingOpts('expenseCategories');
         if(type==='employees') formsConfig.employees.find(x=>x.n==='role').opts = getSettingOpts('employeeRoles');
         
@@ -1036,7 +1312,6 @@
         document.getElementById('modal-body').innerHTML = h;
         document.getElementById('main-modal').classList.add('active');
 
-        // الربط والديناميكية الفورية لإظهار وإخفاء حقل المندوب في التحويلات النقدية
         if(type === 'transfers') {
             setTimeout(() => {
                 let methodSel = document.getElementById('field-method');
@@ -1053,48 +1328,40 @@
             }, 50);
         }
 
+        if(type === 'purchases') {
+            setTimeout(() => {
+                let supSel = document.getElementById('field-supplierId');
+                if(supSel) {
+                    supSel.addEventListener('change', () => checkPriorUnpaidInvoices(supSel.value));
+                }
+            }, 100);
+        }
+
         if(id) {
-            let data = await dbOp(storeMap[type], 'get', id);
-            let form = document.getElementById('dyn-form');
-            for(let k in data) if(form.elements[k]) form.elements[k].value = data[k];
-            // إعادة التفعيل والتنشيط اليدوي في حالة التعديل
+            let lookupId = id;
+            if (typeof id === 'string' && id.trim() !== '' && !isNaN(id)) {
+                lookupId = Number(id);
+            }
+            let data = await dbOp(storeMap[type], 'get', lookupId);
+            if (!data) {
+                data = await dbOp(storeMap[type], 'get', id);
+            }
+            if (data) {
+                let form = document.getElementById('dyn-form');
+                for(let k in data) {
+                    if(form.elements[k]) {
+                        form.elements[k].value = data[k];
+                    }
+                }
+            }
             if(type === 'transfers') {
                 let methodSel = document.getElementById('field-method');
                 if (methodSel) methodSel.dispatchEvent(new Event('change'));
             }
         } else {
-            if (formsConfig[type].find(x=>x.n==='date')) document.getElementById('dyn-form').elements['date'].value = new Date().toISOString().slice(0,10);
-            if (formsConfig[type].find(x=>x.n==='orderDate')) document.getElementById('dyn-form').elements['orderDate'].value = new Date().toISOString().slice(0,10);
-            if (formsConfig[type].find(x=>x.n==='deliveryDate')) document.getElementById('dyn-form').elements['deliveryDate'].value = new Date().toISOString().slice(0,10);
+            if (formsConfig[type].find(x=>x.n==='date')) document.getElementById('dyn-form').elements['date'].value = getLocalDateString();
             if (formsConfig[type].find(x=>x.n==='treasury')) document.getElementById('dyn-form').elements['treasury'].value = appSettings.mainTreasury || 'الخزينة الرئيسية';
         }
-    }
-
-    function filterSelectOptions(input, selectId) {
-        let filter = input.value.trim().toLowerCase();
-        let select = document.getElementById(selectId);
-        if (!select) return;
-        
-        if (!select.dataset.origOptions) {
-            let opts = [];
-            for (let i = 0; i < select.options.length; i++) {
-                opts.push({ value: select.options[i].value, text: select.options[i].text });
-            }
-            select.dataset.origOptions = JSON.stringify(opts);
-        }
-        
-        let orig = JSON.parse(select.dataset.origOptions);
-        let selectedVal = select.value;
-        select.innerHTML = '';
-        orig.forEach(o => {
-            if (o.value === "" || o.text.toLowerCase().includes(filter)) {
-                let opt = document.createElement('option');
-                opt.value = o.value;
-                opt.textContent = o.text;
-                if (o.value === selectedVal) opt.selected = true;
-                select.appendChild(opt);
-            }
-        });
     }
 
     function closeModal() { document.getElementById('main-modal').classList.remove('active'); }
@@ -1104,12 +1371,45 @@
         let fd = new FormData(e.target);
         let data = Object.fromEntries(fd.entries());
         
-        ['amount','totalValue','returnValue','quantity','salary','openingBalance', 'customerId', 'supplierId', 'employeeId', 'totalDebt', 'value', 'remainingDebt'].forEach(k => { 
-            if(data[k] !== undefined && data[k] !== '') data[k]=Number(data[k]); 
+        // Excluded relational fields (customerId, supplierId, employeeId) from parsing as numbers!
+        ['amount','totalValue','returnValue','quantity','salary','openingBalance', 'totalDebt', 'value', 'remainingDebt', 'paidAmount'].forEach(k => { 
+            if(data[k] !== undefined && data[k] !== '') data[k]=round2(data[k]); 
         });
         
-        if(currentEditId) { data.id = currentEditId; await dbOp(storeMap[currentFormType], 'put', data); }
-        else { await dbOp(storeMap[currentFormType], 'add', data); }
+        if (currentFormType === 'purchases') {
+            let total = Number(data.totalValue) || 0;
+            let paid = Number(data.paidAmount) || 0;
+            data.remainingAmount = round2(total - paid);
+            data.paymentStatus = paid >= total ? 'paid' : (paid > 0 ? 'partial' : 'unpaid');
+            
+            if (paid > 0 && !currentEditId) {
+                let mainT = appSettings.mainTreasury || 'الخزينة الرئيسية';
+                let tPayment = {
+                    id: generateUUID(),
+                    date: data.date,
+                    supplierId: data.supplierId,
+                    amount: paid,
+                    treasury: mainT,
+                    method: 'نقدي',
+                    notes: `دفعة تلقائية مسددة مع الفاتورة رقم: ${data.invoiceNo}`,
+                    lastUpdated: Date.now()
+                };
+                await dbOp('supplierPayments', 'add', tPayment);
+            }
+        }
+
+        if(currentEditId) { 
+            let savedId = currentEditId;
+            // Coerce edit ID safely if originally stored as a number inside IndexedDB
+            if (typeof savedId === 'string' && savedId.trim() !== '' && !isNaN(savedId)) {
+                savedId = Number(savedId);
+            }
+            data.id = savedId; 
+            await dbOp(storeMap[currentFormType], 'put', data); 
+        }
+        else { 
+            await dbOp(storeMap[currentFormType], 'add', data); 
+        }
         
         closeModal(); showToast('تم حفظ التعديلات بنجاح');
         
@@ -1121,7 +1421,6 @@
             expenses:'expenses', 
             suppliers:'suppliers', 
             supplierPayments:'suppliers', 
-            supplierOrders: 'suppliers', // Reload suppliers section for orders
             customers:'customers', 
             customerDebts:'customers', 
             customerPayments:'customers', 
@@ -1132,8 +1431,14 @@
     }
 
     async function delRecord(type, id) {
+        if (!isUnlocked) return;
         if(!confirm('هل أنت متأكد من رغبتك في حذف هذا السجل بشكل نهائي؟ لا يمكن الاسترجاع!')) return;
-        await dbOp(storeMap[type], 'delete', id);
+        
+        let lookupId = id;
+        if (typeof id === 'string' && id.trim() !== '' && !isNaN(id)) {
+            lookupId = Number(id);
+        }
+        await dbOp(storeMap[type], 'delete', lookupId);
         showToast('تم حذف السجل من دفاتر الصيدلية');
         const refMap = { 
             sales:'sales', 
@@ -1143,7 +1448,6 @@
             expenses:'expenses', 
             suppliers:'suppliers', 
             supplierPayments:'suppliers', 
-            supplierOrders: 'suppliers',
             customers:'customers', 
             customerDebts:'customers', 
             customerPayments:'customers', 
@@ -1154,27 +1458,36 @@
     }
 
     /* ================= DATA LOGIC & ACCOUNTING ================= */
-    async function getDict(store) { let d = await dbOp(store,'getAll'); let r={}; d.forEach(x=>r[x.id]=x.name); return r; }
+    async function getDict(store) { 
+        let d = await dbOp(store,'getAll'); 
+        let r={}; 
+        d.forEach(x => {
+            r[String(x.id)] = x.name;
+        }); 
+        return r; 
+    }
     
-    // دالة احتساب رصيد الخزينة المستبعد منها تماماً أي أثر لمرتجع المشتريات أو تسديدات العملاء كما هو مطلوب
     async function getTreasuryBalance() {
-        let open = Number(appSettings.treasuryOpeningBalance||0);
+        let open = round2(appSettings.treasuryOpeningBalance||0);
         let mt = (appSettings.mainTreasury || 'الخزينة الرئيسية').trim(); 
         let s = await dbOp('sales','getAll'), 
             e = await dbOp('expenses','getAll'), 
             p = await dbOp('supplierPayments','getAll'), 
             t = await dbOp('cashTransfers','getAll');
         
-        let sSum = s.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
-        let eSum = e.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
-        let pSum = p.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>a+Number(b.amount),0);
+        let sSum = s.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let eSum = e.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let pSum = p.filter(x => (x.treasury || mt).trim() === mt).reduce((a,b)=>round2(a+Number(b.amount)),0);
         
-        let bal = open + sSum - eSum - pSum;
-        t.forEach(x => { let fT = (x.fromTreasury||'').trim(), tT = (x.toTreasury||'').trim(); if(fT===mt) bal-=Number(x.amount); if(tT===mt) bal+=Number(x.amount); });
+        let bal = round2(open + sSum - eSum - pSum);
+        t.forEach(x => { 
+            let fT = (x.fromTreasury||'').trim(), tT = (x.toTreasury||'').trim(); 
+            if(fT===mt) bal=round2(bal-Number(x.amount)); 
+            if(tT===mt) bal=round2(bal+Number(x.amount)); 
+        });
         return bal;
     }
 
-    // دالة احتساب المديونيات المستحقة للموردين مع دمج المرتجعات كعنصر خصم مباشر من حساب المورد فقط
     async function calcSupplierBalances() {
         let sups = await dbOp('suppliers','getAll'), 
             purcs = await dbOp('purchases','getAll'), 
@@ -1182,24 +1495,24 @@
             rets = await dbOp('purchaseReturns', 'getAll');
 
         sups.forEach(s => {
-            let b = purcs.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.totalValue),0);
-            let p = pays.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.amount),0);
-            let r = rets.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>a+Number(x.returnValue),0);
-            s.curBal = Number(s.openingBalance||0) + b - p - r;
+            let b = purcs.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>round2(a+Number(x.totalValue)),0);
+            let p = pays.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>round2(a+Number(x.amount)),0);
+            let r = rets.filter(x=>String(x.supplierId)===String(s.id)).reduce((a,x)=>round2(a+Number(x.returnValue)),0);
+            s.curBal = round2(Number(s.openingBalance||0) + b - p - r);
         });
         return sups;
     }
 
-    // جلب آخر قيمة مسجلة كمديونية إجمالية يدوياً للعملاء
     async function getLastCustomerTotalDebt() {
         let debts = await dbOp('customerDebts', 'getAll');
-        if (!debts.length) return 0;
+        if (!debts.length) return { value: 0, date: '--' };
         debts.sort((a,b) => new Date(a.date) - new Date(b.date));
-        return Number(debts[debts.length - 1].totalDebt || 0);
+        let last = debts[debts.length - 1];
+        return { value: round2(last.totalDebt || 0), date: last.date };
     }
 
-    /* ================= مسح بيانات العملاء دفعة واحدة ================= */
     async function clearAllCustomers() {
+        if (!isUnlocked) return;
         if(confirm('🚨 تنبيه أمني خطير جداً: هل أنت متأكد من رغبتك في حذف وإفراغ كافة بيانات العملاء المسجلين والمديونيات والتسديدات نهائياً من الصيدلية؟ لا يمكن التراجع عن هذا الإجراء!') && confirm('⚠️ تأكيد نهائي أخير: مسح وحذف كل سجلات العملاء؟')) {
             await dbOp('customers', 'clear');
             await dbOp('customerDebts', 'clear');
@@ -1209,7 +1522,6 @@
         }
     }
 
-    /* ================= كشف حساب مورد تفصيلي مدمج بمرتجع غير نقدي ================= */
     async function renderSupplierStatement() {
         let sid = document.getElementById('sup-stmt-select').value;
         let container = document.getElementById('sup-stmt-wrapper');
@@ -1230,23 +1542,23 @@
         }
 
         let timeline = [];
-        timeline.push({ date: sup.date || '2025-01-01', type: 'رصيد افتتاحي مستحق', amount: Number(sup.openingBalance||0), change: Number(sup.openingBalance||0), notes: 'المستحقات المقيدة للجهة الموردة عند بدء التسجيل' });
+        timeline.push({ date: sup.date || '2025-01-01', type: 'رصيد افتتاحي مستحق', amount: round2(sup.openingBalance||0), change: round2(sup.openingBalance||0), notes: 'المستحقات المقيدة للجهة الموردة عند بدء التسجيل' });
 
-        purcs.forEach(p => timeline.push({ date: p.date, type: 'فاتورة مشتريات 📦', amount: Number(p.totalValue), change: Number(p.totalValue), notes: `فاتورة رقم: ${p.invoiceNo}` }));
-        pays.forEach(p => timeline.push({ date: p.date, type: 'دفعة مسددة 💵', amount: Number(p.amount), change: -Number(p.amount), notes: p.notes || 'سداد نقدي/بنكي' }));
-        rets.forEach(r => timeline.push({ date: r.date, type: 'مرتجع مشتريات ↩️', amount: Number(r.returnValue), change: -Number(r.returnValue), notes: `إرجاع صنف (${r.itemName}) فاتورة #${r.invoiceNo} (لا تؤثر بالخزينة)` }));
+        purcs.forEach(p => timeline.push({ date: p.date, type: 'فاتورة مشتريات 📦', amount: round2(p.totalValue), change: round2(p.totalValue), notes: `فاتورة رقم: ${p.invoiceNo}` }));
+        pays.forEach(p => timeline.push({ date: p.date, type: 'دفعة مسددة 💵', amount: round2(p.amount), change: -round2(p.amount), notes: p.notes || 'سداد نقدي/بنكي' }));
+        rets.forEach(r => timeline.push({ date: r.date, type: 'مرتجع مشتريات ↩️', amount: round2(r.returnValue), change: -round2(r.returnValue), notes: `إرجاع صنف (${r.itemName}) فاتورة #${r.invoiceNo}` }));
 
         timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
         let runBal = 0;
         timeline.forEach(t => {
-            runBal += t.change;
+            runBal = round2(runBal + t.change);
             t.runBal = runBal;
         });
 
-        let totPurc = purcs.reduce((a,b)=>a+Number(b.totalValue),0);
-        let totPay = pays.reduce((a,b)=>a+Number(b.amount),0);
-        let totRet = rets.reduce((a,b)=>a+Number(b.returnValue),0);
+        let totPurc = purcs.reduce((a,b)=>round2(a+Number(b.totalValue)),0);
+        let totPay = pays.reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let totRet = rets.reduce((a,b)=>round2(a+Number(b.returnValue)),0);
 
         cardsContainer.innerHTML = `
         <div class="grid-cards" style="margin-top:15px; margin-bottom:15px;">
@@ -1268,93 +1580,68 @@
         container.innerHTML = createTableHTML(cols, timeline, null, "لا توجد معاملات جارية مسجلة للمورد").replace('<table', '<table id="sup-stmt-wrapper-table"');
     }
 
-    /* ================= ميزات الموردين: تأجيل، إلغاء، واستلام الطلبية تلقائياً ================= */
-    async function receiveSupplierOrder(id) {
-        let order = await dbOp('supplierOrders', 'get', id);
-        if (!order) return;
-        if (order.status === 'received') {
-            showToast('هذه الطلبية مستلمة بالفعل!', 'warning');
+    async function payInvoicePrompt(invoiceId) {
+        if (!isUnlocked) return;
+        let invoice = await dbOp('purchases', 'get', invoiceId);
+        if (!invoice) return;
+        
+        let remaining = round2(Number(invoice.totalValue) - (Number(invoice.paidAmount) || 0));
+        let amountToPayStr = prompt(`المتبقي غير المسدد من الفاتورة رقم ${invoice.invoiceNo} هو: ${remaining} ${currencySymbol}\nأدخل المبلغ المراد سداده الآن:`, remaining);
+        
+        if (amountToPayStr === null) return;
+        let amountToPay = round2(amountToPayStr);
+        if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > remaining) {
+            showToast("قيمة المبلغ غير صحيحة أو تتجاوز المتبقي من الفاتورة!", "danger");
             return;
         }
-        if (confirm('هل ترغب في تحويل هذه الطلبية الآن تلقائياً لفاتورة مشتريات فعلية معتمدة؟ سيتم تقييد قيمتها مديونية للمورد وتسجيلها بدفاتر المشتريات.')) {
-            order.status = 'received';
-            await dbOp('supplierOrders', 'put', order);
-            
-            let invoiceNo = 'ORD-' + order.id.slice(0, 5).toUpperCase() + '-' + Math.floor(Math.random() * 1000);
-            let newPurchase = {
-                id: generateUUID(),
-                invoiceNo: invoiceNo,
-                date: new Date().toISOString().slice(0, 10),
-                supplierId: order.supplierId,
-                totalValue: Number(order.amount),
-                notes: `مستوردة تلقائياً من نظام الطلبيات والمتابعة. ملاحظات الطلب الأصلية: ${order.notes || ''}`
-            };
-            await dbOp('purchases', 'add', newPurchase);
-            showToast('تم استلام الطلبية وتوليد فاتورة مشتريات جديدة بنجاح', 'success');
-            sectionLoaders.suppliers();
-        }
-    }
 
-    async function cancelSupplierOrder(id) {
-        let order = await dbOp('supplierOrders', 'get', id);
-        if (!order) return;
-        if (confirm('هل أنت متأكد من إلغاء هذه الطلبية التوريدية؟')) {
-            order.status = 'cancelled';
-            await dbOp('supplierOrders', 'put', order);
-            showToast('تم إلغاء الطلبية', 'success');
-            sectionLoaders.suppliers();
+        let mainT = appSettings.mainTreasury || 'الخزينة الرئيسية';
+        let tBal = await getTreasuryBalance();
+        if (amountToPay > tBal) {
+            showToast(`الرصيد النقدي بالخزينة غير كافٍ! الرصيد المتاح هو: ${formatMoney(tBal)}`, "danger");
+            return;
         }
-    }
 
-    async function postponeSupplierOrder(id) {
-        let order = await dbOp('supplierOrders', 'get', id);
-        if (!order) return;
-        let newDate = prompt('أدخل تاريخ التسليم المتوقع الجديد للطلبية (YYYY-MM-DD):', order.deliveryDate);
-        if (newDate) {
-            order.deliveryDate = newDate;
-            order.status = 'postponed';
-            await dbOp('supplierOrders', 'put', order);
-            showToast('تم تأجيل موعد تسليم الطلبية بنجاح', 'success');
-            sectionLoaders.suppliers();
-        }
-    }
+        invoice.paidAmount = round2((Number(invoice.paidAmount) || 0) + amountToPay);
+        invoice.remainingAmount = round2(Number(invoice.totalValue) - invoice.paidAmount);
+        invoice.paymentStatus = invoice.paidAmount >= Number(invoice.totalValue) ? 'paid' : 'partial';
+        await dbOp('purchases', 'put', invoice);
 
-    // دالة فحص وتنبيهات الطلبيات المستحقة لليوم أو المتأخرة
-    async function checkSupplierOrderAlerts() {
-        let orders = await dbOp('supplierOrders', 'getAll');
-        let today = new Date().toISOString().slice(0, 10);
-        let alertOrders = orders.filter(x => (x.status === 'pending' || x.status === 'postponed') && x.deliveryDate <= today);
-        
-        let alertDashboard = document.getElementById('dashboard-alerts');
-        let alertSuppliers = document.getElementById('suppliers-alerts');
-        
-        let html = '';
-        if (alertOrders.length > 0) {
-            html = `<div style="background:var(--warning); color:#000; padding:12px 20px; border-radius:var(--radius); margin-bottom:20px; display:flex; align-items:center; justify-content:space-between; font-weight:bold; border:1px solid #d39e00; font-size:0.95rem;">
-                <span>⚠️ تنبيه الطلبيات: لديك عدد (${alertOrders.length}) طلبية مستحقة التسليم اليوم أو متأخرة!</span>
-                <button class="btn btn-sm btn-primary" onclick="showSection('suppliers'); showSubTab('sup-orders');">عرض ومتابعة التوريد</button>
-            </div>`;
-        }
-        if (alertDashboard) alertDashboard.innerHTML = html;
-        if (alertSuppliers) alertSuppliers.innerHTML = html;
+        let tPayment = {
+            id: generateUUID(),
+            date: getLocalDateString(),
+            supplierId: invoice.supplierId,
+            amount: amountToPay,
+            treasury: mainT,
+            method: 'نقدي',
+            notes: `سداد مرتبط بالفاتورة رقم: ${invoice.invoiceNo}`,
+            lastUpdated: Date.now()
+        };
+        await dbOp('supplierPayments', 'add', tPayment);
+
+        showToast("تم سداد المبلغ المطلوب وتحديث حالة الفاتورة بنجاح", "success");
+        sectionLoaders.suppliers();
     }
 
     /* ================= SECTION LOADERS ================= */
     const sectionLoaders = {
         dashboard: async () => {
-            await checkSupplierOrderAlerts();
+            if (!isUnlocked) return;
             document.getElementById('dash-treasury').textContent = formatMoney(await getTreasuryBalance());
-            document.getElementById('dash-supplier-debt').textContent = formatMoney((await calcSupplierBalances()).reduce((a,b)=>a+b.curBal,0));
-            document.getElementById('dash-customer-debt').textContent = formatMoney(await getLastCustomerTotalDebt());
+            document.getElementById('dash-supplier-debt').textContent = formatMoney((await calcSupplierBalances()).reduce((a,b)=>round2(a+b.curBal),0));
             
-            let m = new Date().toISOString().slice(0,7);
-            document.getElementById('dash-sales').textContent = formatMoney((await dbOp('sales','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.amount),0));
-            document.getElementById('dash-purchases').textContent = formatMoney((await dbOp('purchases','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.totalValue),0));
-            document.getElementById('dash-expenses').textContent = formatMoney((await dbOp('expenses','getAll')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>a+Number(b.amount),0));
+            let lastDebtInfo = await getLastCustomerTotalDebt();
+            document.getElementById('dash-customer-debt').textContent = formatMoney(lastDebtInfo.value);
+            document.getElementById('dash-customer-debt-meta').textContent = `تاريخ آخر تحديث: ${lastDebtInfo.date}`;
+            
+            let m = getLocalDateString().slice(0,7);
+            document.getElementById('dash-sales').textContent = formatMoney((await fetchStoreData('sales')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>round2(a+Number(b.amount)),0));
+            document.getElementById('dash-purchases').textContent = formatMoney((await fetchStoreData('purchases')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>round2(a+Number(b.totalValue)),0));
+            document.getElementById('dash-expenses').textContent = formatMoney((await fetchStoreData('expenses')).filter(x=>x.date.startsWith(m)).reduce((a,b)=>round2(a+Number(b.amount)),0));
 
             let sales = await dbOp('sales','getAll');
             let mData = {}; for(let i=5;i>=0;i--){ let d=new Date(); d.setMonth(d.getMonth()-i); mData[d.toISOString().slice(0,7)]=0; }
-            sales.forEach(s => { let m=s.date.slice(0,7); if(mData[m]!==undefined) mData[m]+=Number(s.amount); });
+            sales.forEach(s => { let m=s.date.slice(0,7); if(mData[m]!==undefined) mData[m]=round2(mData[m]+Number(s.amount)); });
             let max = Math.max(...Object.values(mData), 1);
             let chHtml = Object.entries(mData).map(([k,v]) => `<div class="bar-wrapper"><div class="bar" style="height:${(v/max)*100}%"></div><div class="bar-label">${k.slice(5)}</div></div>`).join('');
             document.getElementById('dash-sales-chart').innerHTML = chHtml;
@@ -1368,19 +1655,27 @@
             document.getElementById('dash-feed').innerHTML = feed.slice(0,15).map(f=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);"><strong>${f.d}</strong> - ${f.t}</div>`).join('');
         },
         sales: async () => {
+            if (!isUnlocked) return;
             if(!document.getElementById('sales-wrapper')) document.getElementById('sales-container').innerHTML = generateActionBar('sales', "openModalForm('sales')", "شيفت مبيعات");
-            let data = await dbOp('sales','getAll');
+            
+            let fElem = document.getElementById('sales-date-from');
+            let tElem = document.getElementById('sales-date-to');
+            let fD = fElem ? fElem.value : '';
+            let tD = tElem ? tElem.value : '';
+            
+            let data = await fetchStoreData('sales', fD, tD);
             let emps = await getDict('employees'), mt = appSettings.mainTreasury || 'الخزينة الرئيسية';
-            data.forEach(x => { x.empName = emps[x.employeeId]||'غير معروف'; x.treasuryName = x.treasury || mt; });
+            data.forEach(x => { x.empName = emps[String(x.employeeId)]||'غير معروف'; x.treasuryName = x.treasury || mt; });
             
             let filteredData = applyFilters(data, 'sales', ['empName'], 'amount');
-            renderCards('sales-cards', [{title: 'شيفتات المبيعات المكتملة', value: filteredData.length}, {title: 'مجموع مبيعات الخزينة والدرج', value: formatMoney(filteredData.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-success'}]);
+            renderCards('sales-cards', [{title: 'شيفتات المبيعات المكتملة', value: filteredData.length}, {title: 'مجموع مبيعات الخزينة والدرج', value: formatMoney(filteredData.reduce((a,b)=>round2(a+Number(b.amount)),0)), color: 'text-success'}]);
             filteredData.sort((a,b)=>new Date(b.date)-new Date(a.date));
             let cols = [{key:'id',label:'#'},{key:'date',label:'التاريخ'},{key:'empName',label:'الموظف'},{key:'treasuryName',label:'الخزينة الاستقبالية'},{key:'amount',label:'قيمة السحب',format:'money'}];
             let acts = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSales"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSales"}];
             document.getElementById('sales-wrapper').innerHTML = createTableHTML(cols, filteredData, acts).replace('<table', '<table id="sales-wrapper-table"');
         },
         purchases: async () => {
+            if (!isUnlocked) return;
             if(!document.getElementById('purcMaster-wrapper')) {
                 document.getElementById('purc-master').innerHTML = generateActionBar('purcMaster', "openModalForm('purchases')", "فاتورة مشتريات");
                 document.getElementById('purc-returns').innerHTML = generateActionBar('purcRet', "openModalForm('purchaseReturns')", "مرتجع بضائع المشتريات");
@@ -1389,31 +1684,42 @@
             
             let sups = await getDict('suppliers');
             
-            let purcs = await dbOp('purchases','getAll');
-            purcs.forEach(x => x.supName = sups[x.supplierId]||'');
+            let fElem = document.getElementById('purcMaster-date-from');
+            let tElem = document.getElementById('purcMaster-date-to');
+            let fD = fElem ? fElem.value : '';
+            let tD = tElem ? tElem.value : '';
+            
+            let purcs = await fetchStoreData('purchases', fD, tD);
+            purcs.forEach(x => x.supName = sups[String(x.supplierId)]||'');
             let filteredPurcs = applyFilters(purcs, 'purcMaster', ['invoiceNo', 'supName'], 'totalValue');
             
-            let rets = await dbOp('purchaseReturns','getAll');
-            rets.forEach(x => x.supName = sups[x.supplierId]||'');
+            let rets = await fetchStoreData('purchaseReturns', fD, tD);
+            rets.forEach(x => x.supName = sups[String(x.supplierId)]||'');
             let filteredRets = applyFilters(rets, 'purcRet', ['invoiceNo', 'supName', 'itemName'], 'returnValue');
 
-            let invs = await dbOp('inventoryValuations', 'getAll');
+            let invs = await fetchStoreData('inventoryValuations', fD, tD);
             invs.sort((a,b) => new Date(a.date) - new Date(b.date));
             for(let i = 0; i < invs.length; i++) {
                 if (i === 0) invs[i].diff = 0;
-                else invs[i].diff = Number(invs[i].value) - Number(invs[i-1].value);
+                else invs[i].diff = round2(Number(invs[i].value) - Number(invs[i-1].value));
             }
             let filteredInvs = applyFilters(invs, 'invVal', ['notes'], 'value');
 
-            let totalP = filteredPurcs.reduce((a,b)=>a+Number(b.totalValue),0);
-            let totalR = filteredRets.reduce((a,b)=>a+Number(b.returnValue),0);
-            let lastInvVal = filteredInvs.length > 0 ? filteredInvs[filteredInvs.length-1].value : 0;
+            let totalP = filteredPurcs.reduce((a,b)=>round2(a+Number(b.totalValue)),0);
+            let totalR = filteredRets.reduce((a,b)=>round2(a+Number(b.returnValue)),0);
+            
+            let lastInvVal = 0;
+            let lastInvDate = '--';
+            if (filteredInvs.length > 0) {
+                lastInvVal = filteredInvs[filteredInvs.length-1].value;
+                lastInvDate = filteredInvs[filteredInvs.length-1].date;
+            }
 
             renderCards('purchases-cards', [
                 {title: 'الفواتير التوريدية المدخلة', value: filteredPurcs.length}, 
                 {title: 'قيمة المشتريات الإجمالية للموردين', value: formatMoney(totalP), color: 'text-danger'},
                 {title: 'إجمالي المرتجعات المخصومة من الموردين', value: formatMoney(totalR), color: 'text-warning'},
-                {title: 'آخر قيمة مخزون مسجلة', value: formatMoney(lastInvVal), color: 'text-primary'}
+                {title: 'آخر قيمة مخزون مسجلة', value: formatMoney(lastInvVal), color: 'text-primary', meta: `آخر جرد: ${lastInvDate}`}
             ]);
 
             filteredPurcs.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -1422,39 +1728,70 @@
             document.getElementById('purcMaster-wrapper').innerHTML = createTableHTML(colsP, filteredPurcs, actsP).replace('<table', '<table id="purcMaster-wrapper-table"');
 
             filteredRets.sort((a,b)=>new Date(b.date)-new Date(a.date));
-            let colsR = [{key:'invoiceNo',label:'الفاتورة المستهدفة'},{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'itemName',label:'الصنف'},{key:'quantity',label:'الكمية'},{key:'returnValue',label:'قيمة المرتجع (تخصم من المورد فقط)',format:'money'}];
+            let colsR = [{key:'invoiceNo',label:'الفاتورة المستهدفة'},{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'itemName',label:'الصنف'},{key:'quantity',label:'الكمية'},{key:'returnValue',label:'قيمة المرتجع',format:'money'}];
             let actsR = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editPurchaseReturns"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delPurchaseReturns"}];
             document.getElementById('purcRet-wrapper').innerHTML = createTableHTML(colsR, filteredRets, actsR).replace('<table', '<table id="purcRet-wrapper-table"');
 
             filteredInvs.sort((a,b)=>new Date(b.date)-new Date(a.date));
-            let colsI = [{key:'date',label:'التاريخ'},{key:'value',label:'قيمة المخزون المقدرة',format:'money'},{key:'diff',label:'الفارق والاتجاه (مقارنة بالسابق)',format:'diff'},{key:'notes',label:'ملاحظات وحالة الجرد'}];
+            let colsI = [{key:'date',label:'التاريخ'},{key:'value',label:'قيمة المخزون المقدرة',format:'money'},{key:'diff',label:'الفارق والاتجاه',format:'diff'},{key:'notes',label:'ملاحظات وحالة الجرد'}];
             let actsI = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editInventoryValuations"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delInventoryValuations"}];
             document.getElementById('invVal-wrapper').innerHTML = createTableHTML(colsI, filteredInvs, actsI).replace('<table', '<table id="invVal-wrapper-table"');
         },
         expenses: async () => {
-            if(!document.getElementById('expenses-wrapper')) document.getElementById('expenses-container').innerHTML = generateActionBar('expenses', "openModalForm('expenses')", "حركة مصروف جديدة");
-            let data = await dbOp('expenses','getAll');
-            let mt = appSettings.mainTreasury || 'الخزينة الرئيسية'; data.forEach(x => { x.treasuryName = x.treasury || mt; });
+            if (!isUnlocked) return;
+            if(!document.getElementById('expenses-wrapper')) {
+                document.getElementById('expenses-container').innerHTML = generateActionBar('expenses', "openModalForm('expenses')", "مصروف تشغيلي");
+            }
             
+            let fElem = document.getElementById('expenses-date-from');
+            let tElem = document.getElementById('expenses-date-to');
+            let fD = fElem ? fElem.value : '';
+            let tD = tElem ? tElem.value : '';
+            
+            let data = await fetchStoreData('expenses', fD, tD);
             let filteredData = applyFilters(data, 'expenses', ['category', 'description'], 'amount');
-            renderCards('expenses-cards', [{title: 'عدد سندات الصرف في الفترة', value: filteredData.length}, {title: 'مجموع مصروفات التشغيل المخرجة', value: formatMoney(filteredData.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-danger'}]);
+            
+            renderCards('expenses-cards', [
+                {title: 'عدد سندات الصرف', value: filteredData.length},
+                {title: 'إجمالي المصروفات والنفقات', value: formatMoney(filteredData.reduce((a,b)=>round2(a+Number(b.amount)),0)), color: 'text-danger'}
+            ]);
+            
             filteredData.sort((a,b)=>new Date(b.date)-new Date(a.date));
-            let cols = [{key:'date',label:'التاريخ'},{key:'category',label:'التصنيف القطاعي'},{key:'treasuryName',label:'خصماً من الخزينة'},{key:'description',label:'تفصيل المنصرف'},{key:'amount',label:'المبلغ المدفوع',format:'money'}];
-            let acts = [{label:'تعديل',icon:'✏️',type:'warning',handler:"editExpenses"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delExpenses"}];
+            
+            let cols = [
+                {key:'date',label:'التاريخ'},
+                {key:'category',label:'التصنيف القطاعي'},
+                {key:'treasury',label:'خصماً من خزينة'},
+                {key:'description',label:'البيان والتفصيل المالي'},
+                {key:'paymentMethod',label:'طريقة الدفع'},
+                {key:'amount',label:'مبلغ المصروف',format:'money'}
+            ];
+            let acts = [
+                {label:'تعديل',icon:'✏️',type:'warning',handler:"editExpenses"},
+                {label:'حذف',icon:'🗑️',type:'danger',handler:"delExpenses"}
+            ];
             document.getElementById('expenses-wrapper').innerHTML = createTableHTML(cols, filteredData, acts).replace('<table', '<table id="expenses-wrapper-table"');
         },
         suppliers: async () => {
-            await checkSupplierOrderAlerts();
+            if (!isUnlocked) return;
             let sups = await calcSupplierBalances();
-            renderCards('suppliers-cards', [{title: 'الموردين المسجلين في النظام', value: sups.length}, {title: 'إجمالي الديون والالتزامات المالية للموردين', value: formatMoney(sups.reduce((a,b)=>a+b.curBal,0)), color: 'text-danger'}]);
+            renderCards('suppliers-cards', [
+                {title: 'الموردين المسجلين في النظام', value: sups.length}, 
+                {title: 'إجمالي الديون والالتزامات المالية للموردين', value: formatMoney(sups.reduce((a,b)=>round2(a+b.curBal),0)), color: 'text-danger'}
+            ]);
 
             if(!document.getElementById('supMaster-wrapper')) {
                 document.getElementById('sup-master').innerHTML = generateActionBar('supMaster', "openModalForm('suppliers')", "مورد");
                 document.getElementById('sup-payments').innerHTML = generateActionBar('supPay', "openModalForm('supplierPayments')", "دفعة سداد للمورد");
+                document.getElementById('sup-invoices').innerHTML = generateActionBar('supInvs', "openModalForm('purchases')", "فاتورة مشتريات");
                 
-                // دمج وتبويب إدارة وتتبع الطلبيات والتوريد للموردين
-                let extraAction = `<button class="btn btn-warning" onclick="openModalForm('supplierPayments')">💵 سداد سريع للمورد</button>`;
-                document.getElementById('sup-orders').innerHTML = generateActionBar('supOrder', "openModalForm('supplierOrders')", "طلبية توريد", extraAction);
+                document.getElementById('sup-scheduler').innerHTML = `
+                    <div style="margin-bottom:15px; background:var(--bg); padding:15px; border-radius:var(--radius); border:1px solid var(--border);">
+                        <h4 style="margin-bottom:10px;">📅 أجندة الطلبيات والجدولة الذكية لليوم</h4>
+                        <p class="text-muted" style="font-size:0.9rem;">يقوم النظام تلقائياً بتحديد الموردين المطلوب طلب بضائع منهم اليوم بناءً على جدول الطلب الأسبوعي الدائم الخاص بهم.</p>
+                    </div>
+                    <div id="sup-scheduler-list"></div>
+                `;
             }
 
             let stmtSelect = document.getElementById('sup-stmt-select');
@@ -1465,62 +1802,106 @@
             }
 
             let filteredSups = applyFilters(sups, 'supMaster', ['name', 'phone'], 'curBal');
-            document.getElementById('supMaster-wrapper').innerHTML = createTableHTML([{key:'name',label:'الاسم والشركة'},{key:'phone',label:'رقم الاتصال'},{key:'curBal',label:'الرصيد الجاري المستحق له',format:'money'}], filteredSups, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSuppliers"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSuppliers"}]).replace('<table', '<table id="supMaster-wrapper-table"');
+            let colsSup = [
+                {key:'name',label:'الاسم والشركة'},
+                {key:'phone',label:'رقم الاتصال'},
+                {key:'orderDay',label:'يوم الطلب'},
+                {key:'deliveryDay',label:'يوم التوريد'},
+                {key:'collectionSystem',label:'نظام التحصيل'},
+                {key:'curBal',label:'الرصيد الجاري المستمر',format:'money'}
+            ];
+            document.getElementById('supMaster-wrapper').innerHTML = createTableHTML(colsSup, filteredSups, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSuppliers"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSuppliers"}]).replace('<table', '<table id="supMaster-wrapper-table"');
 
-            let pays = await dbOp('supplierPayments','getAll'), sD = await getDict('suppliers'), mt = appSettings.mainTreasury || 'الخزينة الرئيسية';
-            pays.forEach(x => { x.supName = sD[x.supplierId]||''; x.treasuryName = x.treasury || mt; });
-            let filteredPays = applyFilters(pays, 'supPay', ['supName'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
-            document.getElementById('supPay-wrapper').innerHTML = createTableHTML([{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'treasuryName',label:'سحب من الخزينة'},{key:'amount',label:'المبلغ المودع',format:'money'}], filteredPays, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSupplierPayments"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSupplierPayments"}]).replace('<table', '<table id="supPay-wrapper-table"');
-            
-            // معالجة وجلب طلبيات التوريد المضافة حديثاً
-            let orders = await dbOp('supplierOrders', 'getAll');
-            orders.forEach(x => x.supName = sD[x.supplierId]||'');
-            let filteredOrders = applyFilters(orders, 'supOrder', ['supName', 'notes'], 'amount').sort((a,b)=>new Date(b.deliveryDate)-new Date(a.deliveryDate));
-            
-            let displayOrders = filteredOrders.map(o => {
-                let statusText = '';
-                if(o.status === 'pending') statusText = '<span class="text-warning" style="font-weight:bold;">قيد الانتظار ⏳</span>';
-                else if(o.status === 'postponed') statusText = '<span class="text-info" style="font-weight:bold;">مؤجلة 🔁</span>';
-                else if(o.status === 'cancelled') statusText = '<span class="text-danger" style="font-weight:bold;">ملغاة ❌</span>';
-                else if(o.status === 'received') statusText = '<span class="text-success" style="font-weight:bold;">تم الاستلام ✅</span>';
-                return { ...o, statusDisplay: statusText };
+            let purchases = await dbOp('purchases', 'getAll');
+            let supsDict = await getDict('suppliers');
+            purchases.forEach(p => {
+                p.supName = supsDict[String(p.supplierId)] || 'غير معروف';
+                p.remainingAmount = round2(Number(p.totalValue) - (Number(p.paidAmount) || 0));
+                if (p.paymentStatus === 'paid') p.statusDisplay = '<span class="text-success">مسددة بالكامل ✅</span>';
+                else if (p.paymentStatus === 'partial') p.statusDisplay = '<span class="text-warning">مسددة جزئياً 🔁</span>';
+                else p.statusDisplay = '<span class="text-danger">غير مسددة ❌</span>';
             });
-
-            let colsO = [
-                {key:'orderDate', label:'تاريخ الطلب'},
-                {key:'deliveryDate', label:'تاريخ التسليم المتوقع'},
-                {key:'supName', label:'المورد المستهدف'},
-                {key:'amount', label:'القيمة التقديرية', format:'money'},
-                {key:'statusDisplay', label:'الحالة الجارية'},
-                {key:'notes', label:'تفاصيل الطلب'}
+            let filteredPurchases = applyFilters(purchases, 'supInvs', ['invoiceNo', 'supName'], 'totalValue');
+            let colsInvs = [
+                {key:'invoiceNo', label:'رقم الفاتورة'},
+                {key:'date', label:'التاريخ'},
+                {key:'supName', label:'المورد المعتمد'},
+                {key:'totalValue', label:'القيمة الكلية', format:'money'},
+                {key:'paidAmount', label:'المسدد', format:'money'},
+                {key:'remainingAmount', label:'المتبقي', format:'money'},
+                {key:'statusDisplay', label:'حالة الدفع'}
             ];
-            // إجراءات العمليات والتعديل للطلبيات
-            let actsO = [
-                {label:'تعديل',icon:'✏️',type:'warning',handler:"editSupplierOrders"},
-                {label:'تأجيل',icon:'🔁',type:'info',handler:"postponeSupplierOrder"},
-                {label:'إلغاء',icon:'❌',type:'secondary',handler:"cancelSupplierOrder"},
-                {label:'استلام',icon:'✅',type:'success',handler:"receiveSupplierOrder"},
-                {label:'حذف',icon:'🗑️',type:'danger',handler:"delSupplierOrders"}
+            let actsInvs = [
+                {label:'تسديد الفاتورة', icon:'💵', type:'success', handler:'payInvoicePrompt'},
+                {label:'تعديل الفاتورة', icon:'✏️', type:'warning', handler:'editPurchases'},
+                {label:'حذف', icon:'🗑️', type:'danger', handler:'delPurchases'}
             ];
-            document.getElementById('sup-orders-wrapper').innerHTML = createTableHTML(colsO, displayOrders, actsO).replace('<table', '<table id="sup-orders-wrapper-table"');
+            document.getElementById('supInvs-wrapper').innerHTML = createTableHTML(colsInvs, filteredPurchases, actsInvs).replace('<table', '<table id="supInvs-wrapper-table"');
 
+            const daysInArabic = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+            const currentDayName = daysInArabic[new Date().getDay()];
+            let scheduledSuppliers = sups.filter(s => s.orderDay === currentDayName);
+            
+            let schedulerHTML = '';
+            if (scheduledSuppliers.length === 0) {
+                schedulerHTML = `<p class="text-muted text-center" style="padding:20px;">لا توجد طلبيات دورية مجدولة اليوم لليوم الحالي (${currentDayName})</p>`;
+            } else {
+                schedulerHTML = `<div class="table-responsive"><table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>اسم المورد</th>
+                            <th>رقم الاتصال</th>
+                            <th>يوم التوريد المتوقع</th>
+                            <th>نظام التحصيل</th>
+                            <th>الرصيد الجاري المستمر</th>
+                            <th>إجراءات الطلب اليوم</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                scheduledSuppliers.forEach(s => {
+                    schedulerHTML += `<tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td>${s.phone || '---'}</td>
+                        <td>${s.deliveryDay || 'غير محدد'}</td>
+                        <td>${s.collectionSystem || 'غير محدد'}</td>
+                        <td>${formatMoney(s.curBal)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openModalForm('purchases')">➕ تسجيل فاتورة مستلمة</button>
+                        </td>
+                    </tr>`;
+                });
+                schedulerHTML += `</tbody></table></div>`;
+            }
+            document.getElementById('sup-scheduler-list').innerHTML = schedulerHTML;
+
+            let fElem = document.getElementById('supPay-date-from');
+            let tElem = document.getElementById('supPay-date-to');
+            let fD = fElem ? fElem.value : '';
+            let tD = tElem ? tElem.value : '';
+
+            let pays = await fetchStoreData('supplierPayments', fD, tD), mt = appSettings.mainTreasury || 'الخزينة الرئيسية';
+            pays.forEach(x => { x.supName = supsDict[String(x.supplierId)]||''; x.treasuryName = x.treasury || mt; });
+            let filteredPays = applyFilters(pays, 'supPay', ['supName'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
+            document.getElementById('supPay-wrapper').innerHTML = createTableHTML([{key:'date',label:'التاريخ'},{key:'supName',label:'المورد'},{key:'treasuryName',label:'سحب من الخزينة'},{key:'notes',label:'بيان الدفعة'},{key:'amount',label:'المبلغ المودع',format:'money'}], filteredPays, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editSupplierPayments"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delSupplierPayments"}]).replace('<table', '<table id="supPay-wrapper-table"');
+            
             if(stmtSelect && stmtSelect.value) {
                 renderSupplierStatement();
             }
         },
         customers: async () => {
+            if (!isUnlocked) return;
             let custs = await dbOp('customers','getAll');
             let debts = await dbOp('customerDebts', 'getAll');
             debts.sort((a,b) => new Date(a.date) - new Date(b.date));
             for(let i = 0; i < debts.length; i++) {
                 if (i === 0) debts[i].diff = 0;
-                else debts[i].diff = Number(debts[i].totalDebt) - Number(debts[i-1].totalDebt);
+                else debts[i].diff = round2(Number(debts[i].totalDebt) - Number(debts[i-1].totalDebt));
             }
 
             let cpays = await dbOp('customerPayments','getAll'); 
             let cDict = await getDict('customers');
             cpays.forEach(x => { 
-                x.cName = x.customerName || cDict[x.customerId] || 'عميل غير معروف'; 
+                x.cName = x.customerName || cDict[String(x.customerId)] || 'عميل غير معروف'; 
             });
 
             if(!document.getElementById('custDebt-wrapper')) {
@@ -1529,21 +1910,26 @@
                 document.getElementById('cust-payments').innerHTML = generateActionBar('custPay', "openModalForm('customerPayments')", "دفعة تحصيل من عميل");
             }
 
-            let lastCustomerTotal = debts.length > 0 ? debts[debts.length-1].totalDebt : 0;
-            let filteredDebtsSummary = applyFilters(debts, 'custDebt', ['notes'], 'totalDebt');
+            let lastCustomerTotal = 0;
+            let lastDebtDate = '--';
+            if (debts.length > 0) {
+                lastCustomerTotal = debts[debts.length-1].totalDebt;
+                lastDebtDate = debts[debts.length-1].date;
+            }
+            
             let filteredCPaysSummary = applyFilters(cpays, 'custPay', ['cName'], 'amount');
 
             renderCards('customers-cards', [
                 {title: 'العملاء المدرجين بالنظام', value: custs.length}, 
-                {title: 'آخر مديونية إجمالية مسجلة بالصيدلية', value: formatMoney(lastCustomerTotal), color: 'text-warning'},
-                {title: 'إجمالي تحصيلات دفعات العملاء (الفترة الحالية)', value: formatMoney(filteredCPaysSummary.reduce((a,b)=>a+Number(b.amount),0)), color: 'text-success'}
+                {title: 'آخر مديونية إجمالية مسجلة بالصيدلية', value: formatMoney(lastCustomerTotal), color: 'text-warning', meta: `تاريخ آخر تحديث: ${lastDebtDate}`},
+                {title: 'إجمالي تحصيلات دفعات العملاء (الفترة الحالية)', value: formatMoney(filteredCPaysSummary.reduce((a,b)=>round2(a+Number(b.amount)),0)), color: 'text-success'}
             ]);
             
             let filteredDebts = applyFilters(debts, 'custDebt', ['notes'], 'totalDebt').sort((a,b)=>new Date(b.date)-new Date(a.date));
             document.getElementById('custDebt-wrapper').innerHTML = createTableHTML([
                 {key:'date',label:'تاريخ الجرد والتسجيل'},
                 {key:'totalDebt',label:'إجمالي الدين المقيد بالخارج',format:'money'},
-                {key:'diff',label:'التطور المالي مقارنة بالسابق',format:'diff'},
+                {key:'diff',label:'الفارق عن التسجيل السابق',format:'diff'},
                 {key:'notes',label:'ملاحظات وحالة الجرد'}
             ], filteredDebts, [
                 {label:'تعديل',icon:'✏️',type:'warning',handler:"editCustomerDebts"},
@@ -1563,23 +1949,25 @@
             ]).replace('<table', '<table id="custPay-wrapper-table"');
         },
         employees: async () => {
+            if (!isUnlocked) return;
             if(!document.getElementById('emps-wrapper')) document.getElementById('employees-container').innerHTML = generateActionBar('emps', "openModalForm('employees')", "موظف");
             let data = await dbOp('employees','getAll');
             let filtered = applyFilters(data, 'emps', ['name', 'role'], 'salary');
-            renderCards('employees-cards', [{title: 'طاقم العمل المسجل', value: data.length}, {title: 'مجموع الرواتب الدورية المعتمدة', value: formatMoney(data.reduce((a,b)=>a+Number(b.salary||0),0)), color: 'text-primary'}]);
+            renderCards('employees-cards', [{title: 'طاقم العمل المسجل', value: data.length}, {title: 'مجموع الرواتب الدورية المعتمدة', value: formatMoney(data.reduce((a,b)=>round2(a+Number(b.salary||0)),0)), color: 'text-primary'}]);
             let cols = [{key:'name',label:'الاسم الكامل'},{key:'role',label:'التخصص/القسم'},{key:'salary',label:'الراتب الأساسي',format:'money'},{key:'status',label:'حالة الكادر'}];
             document.getElementById('emps-wrapper').innerHTML = createTableHTML(cols, filtered, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editEmployees"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delEmployees"}]).replace('<table', '<table id="emps-wrapper-table"');
         },
         transfers: async () => {
+            if (!isUnlocked) return;
             if(!document.getElementById('trans-wrapper')) document.getElementById('transfers-container').innerHTML = generateActionBar('trans', "openModalForm('transfers')", "حركة تحويل نقدي");
             let data = await dbOp('cashTransfers','getAll'), emps = await getDict('employees');
             data.forEach(x => {
-                x.empName = emps[x.employeeId]||'';
+                x.empName = emps[String(x.employeeId)]||'';
                 x.displayAgent = x.deliveryAgent ? x.deliveryAgent : '---';
             });
             
             let filtered = applyFilters(data, 'trans', ['empName', 'fromTreasury', 'toTreasury', 'method', 'deliveryAgent'], 'amount').sort((a,b)=>new Date(b.date)-new Date(a.date));
-            renderCards('transfers-cards', [{title: 'حوالات الخزائن بالفترة', value: filtered.length}, {title: 'إجمالي المبالغ المنقولة نقدياً', value: formatMoney(filtered.reduce((a,b)=>a+Number(b.amount||0),0)), color: 'text-success'}]);
+            renderCards('transfers-cards', [{title: 'حوالات الخزائن بالفترة', value: filtered.length}, {title: 'إجمالي المبالغ المنقولة نقدياً', value: formatMoney(filtered.reduce((a,b)=>round2(a+Number(b.amount||0)),0)), color: 'text-success'}]);
             let cols = [
                 {key:'date',label:'التاريخ'},
                 {key:'fromTreasury',label:'الخزانة المصدر'},
@@ -1592,29 +1980,30 @@
             document.getElementById('trans-wrapper').innerHTML = createTableHTML(cols, filtered, [{label:'تعديل',icon:'✏️',type:'warning',handler:"editTransfers"},{label:'حذف',icon:'🗑️',type:'danger',handler:"delTransfers"}]).replace('<table', '<table id="trans-wrapper-table"');
         },
         treasury: async () => {
+            if (!isUnlocked) return;
             let mt = (appSettings.mainTreasury || 'الخزينة الرئيسية').trim();
-            let ledger = [{date:'2025-01-01', type:'رصيد افتتاحي للبرنامج', amount:Number(appSettings.treasuryOpeningBalance||0), dir:'in', desc:'الرصيد الافتتاحي المرجعي الأساسي للخزينة'}];
+            let ledger = [{date:'2025-01-01', type:'رصيد افتتاحي للبرنامج', amount:round2(appSettings.treasuryOpeningBalance||0), dir:'in', desc:'الرصيد الافتتاحي المرجعي الأساسي للخزينة'}];
             
-            (await dbOp('sales','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(s=>ledger.push({date:s.date, type:'حركة مبيعات 💰', amount:s.amount, dir:'in', desc:`شيفت مبيعات #${s.id}`}));
-            (await dbOp('expenses','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(e=>ledger.push({date:e.date, type:'مصروفات تشغيلية 💸', amount:e.amount, dir:'out', desc:`سند صرف: ${e.category} - ${e.description}`}));
+            (await dbOp('sales','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(s=>ledger.push({date:s.date, type:'حركة مبيعات 💰', amount:round2(s.amount), dir:'in', desc:`شيفت مبيعات #${s.id}`}));
+            (await dbOp('expenses','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(e=>ledger.push({date:e.date, type:'مصروفات تشغيلية 💸', amount:round2(e.amount), dir:'out', desc:`سند صرف: ${e.category} - ${e.description}`}));
             
             let supDict = await getDict('suppliers');
-            (await dbOp('supplierPayments','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(p=>ledger.push({date:p.date, type:'تسديد مورد 🏢', amount:p.amount, dir:'out', desc:`لصالح المورد: ${supDict[p.supplierId]||''}`}));
+            (await dbOp('supplierPayments','getAll')).filter(x=>(x.treasury||mt)===mt).forEach(p=>ledger.push({date:p.date, type:'تسديد مورد 🏢', amount:round2(p.amount), dir:'out', desc:`لصالح المورد: ${supDict[String(p.supplierId)]||''}`}));
             
             (await dbOp('cashTransfers','getAll')).forEach(t=>{
                 let fT = (t.fromTreasury || '').trim(), tT = (t.toTreasury || '').trim();
-                if(fT === mt) ledger.push({date:t.date, type:'تحويل للخارج 🔄', amount:t.amount, dir:'out', desc:`منقول إلى ${t.toTreasury}`});
-                if(tT === mt) ledger.push({date:t.date, type:'تحويل للداخل 🔄', amount:t.amount, dir:'in', desc:`وارد من ${t.fromTreasury}`});
+                if(fT === mt) ledger.push({date:t.date, type:'تحويل للخارج 🔄', amount:round2(t.amount), dir:'out', desc:`منقول إلى ${t.toTreasury}`});
+                if(tT === mt) ledger.push({date:t.date, type:'تحويل للداخل 🔄', amount:round2(t.amount), dir:'in', desc:`وارد من ${t.fromTreasury}`});
             });
             
             ledger.sort((a,b)=>new Date(a.date)-new Date(b.date));
-            let bal = 0; ledger.forEach(r => { bal += r.dir==='in'?Number(r.amount):-Number(r.amount); r.runBal = bal; });
+            let bal = 0; ledger.forEach(r => { bal = r.dir==='in' ? round2(bal+Number(r.amount)) : round2(bal-Number(r.amount)); r.runBal = bal; });
             ledger.reverse();
             
             let filtered = applyFilters(ledger, 'treasury', ['type', 'desc'], 'amount');
             
-            let totalIn = filtered.filter(x=>x.dir==='in').reduce((a,b)=>a+Number(b.amount),0);
-            let totalOut = filtered.filter(x=>x.dir==='out').reduce((a,b)=>a+Number(b.amount),0);
+            let totalIn = filtered.filter(x=>x.dir==='in').reduce((a,b)=>round2(a+Number(b.amount)),0);
+            let totalOut = filtered.filter(x=>x.dir==='out').reduce((a,b)=>round2(a+Number(b.amount)),0);
 
             renderCards('treasury-cards', [
                 {title: 'الرصيد النقدي المتواجد حالياً بالخزينة', value: formatMoney(bal), color: 'text-primary'},
@@ -1625,13 +2014,16 @@
             let cols = [{key:'date',label:'التاريخ'},{key:'type',label:'نوع المعاملة'},{key:'desc',label:'بيان وتفصيل'},{key:'amount',label:'المبلغ القياسي',format:'money'},{key:'dir',label:'المسار النبضي',format:'dir'},{key:'runBal',label:'المحفظة المتراكمة',format:'money'}];
             document.getElementById('treasury-table-container').innerHTML = createTableHTML(cols, filtered).replace('<table', '<table id="treasury-table-container-table"');
         },
-        dailySummary: async () => {
-            let today = new Date().toISOString().slice(0, 10);
-            document.getElementById('ds-date').value = today;
-            generateDailySummary();
+        monthlySummary: async () => {
+            if (!isUnlocked) return;
+            let currentMonth = getLocalDateString().substring(0, 7);
+            document.getElementById('ms-month').value = currentMonth;
+            generateMonthlySummary();
         },
         settings: async () => {
+            if (!isUnlocked) return;
             document.getElementById('set-pharmacyName').value = appSettings.pharmacyName || '';
+            document.getElementById('set-appName').value = appSettings.appName || 'نظام الإدارة المالية للصيدلية';
             document.getElementById('set-currency').value = appSettings.currency || 'ج.م';
             document.getElementById('set-mainTreasury').value = appSettings.mainTreasury || 'الخزينة الرئيسية';
             document.getElementById('set-treasuryOpeningBalance').value = appSettings.treasuryOpeningBalance || 0;
@@ -1656,22 +2048,21 @@
 
     /* ================= FINAL ACCOUNT & REPORTS ================= */
     async function generateFinalAccount() {
+        if (!isUnlocked) return;
         let f = document.getElementById('fa-from').value, t = document.getElementById('fa-to').value;
         if(!f||!t) return showToast('حدد التواريخ والمدى أولاً','danger');
-        let dFil = x => x.date>=f && x.date<=t;
         
-        let s = (await dbOp('sales','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
-        let e = (await dbOp('expenses','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
-        let sp = (await dbOp('supplierPayments','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
-        let p = (await dbOp('purchases','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.totalValue),0);
+        let s = (await fetchStoreData('sales', f, t)).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let e = (await fetchStoreData('expenses', f, t)).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let sp = (await fetchStoreData('supplierPayments', f, t)).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let p = (await fetchStoreData('purchases', f, t)).reduce((a,b)=>round2(a+Number(b.totalValue)),0);
         
-        // التحصيلات والمرتجعات معاملات تسوية تظهر ببنود مستقلة ورقياً
-        let cp = (await dbOp('customerPayments','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.amount),0);
-        let rets = (await dbOp('purchaseReturns','getAll')).filter(dFil).reduce((a,b)=>a+Number(b.returnValue),0);
+        let cp = (await fetchStoreData('customerPayments', f, t)).reduce((a,b)=>round2(a+Number(b.amount)),0);
+        let rets = (await fetchStoreData('purchaseReturns', f, t)).reduce((a,b)=>round2(a+Number(b.returnValue)),0);
         
         let totalIn = s;
-        let totalOut = e + sp;
-        let netCash = totalIn - totalOut;
+        let totalOut = round2(e + sp);
+        let netCash = round2(totalIn - totalOut);
         
         let h = `
         <div class="fs-container">
@@ -1696,50 +2087,61 @@
     }
 
     async function generateReport() {
+        if (!isUnlocked) return;
         let typ = document.getElementById('rep-type').value, f = document.getElementById('rep-from').value, t = document.getElementById('rep-to').value;
         let dFil = x => (!f || x.date>=f) && (!t || x.date<=t);
         let data, cols, mt = appSettings.mainTreasury || 'الخزينة الرئيسية', totalSum = 0;
 
         if(typ==='sales') { 
-            data=(await dbOp('sales','getAll')).filter(dFil); let eDict = await getDict('employees');
-            data.forEach(x=>{ x.tName = x.treasury||mt; x.empName = eDict[x.employeeId]||''; totalSum+=Number(x.amount); }); 
+            data=(await fetchStoreData('sales', f, t)).filter(dFil); let eDict = await getDict('employees');
+            data.forEach(x=>{ x.tName = x.treasury||mt; x.empName = eDict[String(x.employeeId)]||''; totalSum=round2(totalSum+Number(x.amount)); }); 
             cols=[{key:'date',label:'التاريخ'},{key:'empName',label:'الموظف المستلم'},{key:'tName',label:'الخزينة المستهدفة'},{key:'amount',label:'المبلغ المورد للدرج',format:'money'}]; 
         }
         else if(typ==='purchases') { 
-            data=(await dbOp('purchases','getAll')).filter(dFil); let sDict = await getDict('suppliers');
-            data.forEach(x=>{ x.supName = sDict[x.supplierId]||''; totalSum+=Number(x.totalValue); });
+            data=(await fetchStoreData('purchases', f, t)).filter(dFil); let sDict = await getDict('suppliers');
+            data.forEach(x=>{ x.supName = sDict[String(x.supplierId)]||''; totalSum=round2(totalSum+Number(x.totalValue)); });
             cols=[{key:'date',label:'التاريخ'},{key:'invoiceNo',label:'رقم الفاتورة'},{key:'supName',label:'المورد المعتمد'},{key:'totalValue',label:'قيمة الشراء والمديونية المستحقة له',format:'money'}]; 
         }
         else if(typ==='purchaseReturns') { 
-            data=(await dbOp('purchaseReturns','getAll')).filter(dFil); let sDict = await getDict('suppliers');
-            data.forEach(x=>{ x.supName = sDict[x.supplierId]||''; totalSum+=Number(x.returnValue); });
-            cols=[{key:'date',label:'التاريخ'},{key:'invoiceNo',label:'الفاتورة المرجعية'},{key:'supName',label:'المورد'},{key:'itemName',label:'اسم الصنف المرتجع'},{key:'returnValue',label:'قيمة الارتجاع المالي (مخصومة من حساب المورد)',format:'money'}]; 
+            data=(await fetchStoreData('purchaseReturns', f, t)).filter(dFil); let sDict = await getDict('suppliers');
+            data.forEach(x=>{ x.supName = sDict[String(x.supplierId)]||''; totalSum=round2(totalSum+Number(x.returnValue)); });
+            cols=[{key:'date',label:'التاريخ'},{key:'invoiceNo',label:'الفاتورة المرجعية'},{key:'supName',label:'المورد'},{key:'itemName',label:'اسم الصنف المرتجع'},{key:'returnValue',label:'قيمة الارتجاع المالي',format:'money'}]; 
         }
         else if(typ==='expenses') { 
-            data=(await dbOp('expenses','getAll')).filter(dFil); 
-            data.forEach(x=>{ x.tName = x.treasury||mt; totalSum+=Number(x.amount); }); 
-            cols=[{key:'date',label:'التاريخ'},{key:'tName',label:'من خزينة'},{key:'category',label:'التصنيف القطاعي'},{key:'amount',label:'مبلغ المنصرف',format:'money'}]; 
+            data=(await fetchStoreData('expenses', f, t)).filter(dFil); 
+            data.forEach(x=>{ x.tName = x.treasury||mt; totalSum=round2(totalSum+Number(x.amount)); }); 
+            cols=[{key:'date',label:'التاريخ'},{key:'tName',label:'من خزينة'},{key:'category',label:'التصنيف القطاعي'},{key:'description',label:'تفصيل المنصرف'},{key:'amount',label:'مبلغ المنصرف',format:'money'}]; 
+        }
+        else if(typ==='supplierPayments') {
+            data=(await fetchStoreData('supplierPayments', f, t)).filter(dFil); let sDict = await getDict('suppliers');
+            data.forEach(x=>{ x.supName = sDict[String(x.supplierId)]||''; x.tName = x.treasury||mt; totalSum=round2(totalSum+Number(x.amount)); });
+            cols=[{key:'date',label:'التاريخ'},{key:'supName',label:'المورد المستلم'},{key:'tName',label:'من خزينة'},{key:'notes',label:'بيان المعاملة'},{key:'amount',label:'المبلغ المدفوع',format:'money'}];
         }
         else if(typ==='transfers') { 
-            data=(await dbOp('cashTransfers','getAll')).filter(dFil); 
-            data.forEach(x=>totalSum+=Number(x.amount));
+            data=(await fetchStoreData('cashTransfers', f, t)).filter(dFil); 
+            data.forEach(x=>totalSum=round2(totalSum+Number(x.amount)));
             cols=[{key:'date',label:'التاريخ'},{key:'fromTreasury',label:'الخزانة المصدر'},{key:'toTreasury',label:'الخزانة المستقبلة'},{key:'amount',label:'قيمة التحويل النقدية',format:'money'}]; 
         }
+        else if(typ==='customerPayments') {
+            data=(await fetchStoreData('customerPayments', f, t)).filter(dFil); let cDict = await getDict('customers');
+            data.forEach(x=>{ x.cName = x.customerName || cDict[String(x.customerId)] || 'عميل غير معروف'; totalSum=round2(totalSum+Number(x.amount)); });
+            cols=[{key:'date',label:'التاريخ'},{key:'cName',label:'العميل'},{key:'notes',label:'بيان المعاملة'},{key:'amount',label:'المبلغ المسدد المقبوض',format:'money'}];
+        }
         else if(typ==='custDebts') {
-            data=(await dbOp('customerDebts', 'getAll')).filter(dFil);
+            data=(await fetchStoreData('customerDebts', f, t)).filter(dFil);
             data.sort((a,b)=>new Date(a.date)-new Date(b.date));
             for(let i=0; i<data.length; i++) {
                 if (i===0) data[i].diff = 0;
-                else data[i].diff = Number(data[i].totalDebt) - Number(data[i-1].totalDebt);
+                else data[i].diff = round2(Number(data[i].totalDebt) - Number(data[i-1].totalDebt));
             }
             cols=[{key:'date',label:'تاريخ الجرد والتسجيل'},{key:'totalDebt',label:'إجمالي مديونية العملاء',format:'money'},{key:'diff',label:'الفارق عن التسجيل السابق',format:'diff'},{key:'notes',label:'ملاحظات وحالة الجرد'}];
         }
         else if(typ==='inventoryTrend') {
-            data=(await dbOp('inventoryValuations', 'getAll')).filter(dFil);
+            data=(await fetchStoreData('inventoryValuations', f, t)).filter(dFil);
             data.sort((a,b)=>new Date(a.date)-new Date(b.date));
             for(let i=0; i<data.length; i++) {
                 if (i===0) data[i].diff = 0;
-                else data[i].diff = Number(data[i].value) - Number(data[i-1].value);
+                else data[i].diff = round2(Number(data[i].value) - Number(data[i-1].value));
             }
             cols=[{key:'date',label:'تاريخ تقييم البضاعة والمخزون'},{key:'value',label:'قيمة المخزون الإجمالية يدوياً',format:'money'},{key:'diff',label:'التطور المالي (مقارنة بالسابق)',format:'diff'},{key:'notes',label:'حالة الجرد والملاحظات'}];
         }
@@ -1757,15 +2159,116 @@
         }
     }
 
-    /* ================= لقطات ومقايضات اليوم المالي اليومي المجمع والمطور للطباعة ================= */
+    /* ================= MONTHLY SUMMARY GENERATOR ================= */
+    async function generateMonthlySummary() {
+        if (!isUnlocked) return;
+        let selectedMonth = document.getElementById('ms-month').value;
+        if (!selectedMonth) {
+            selectedMonth = getLocalDateString().substring(0, 7);
+            document.getElementById('ms-month').value = selectedMonth;
+        }
+
+        let sales = await dbOp('sales', 'getAll');
+        let purcs = await dbOp('purchases', 'getAll');
+        let rets = await dbOp('purchaseReturns', 'getAll');
+        let exps = await dbOp('expenses', 'getAll');
+        let suppPays = await dbOp('supplierPayments', 'getAll');
+        let transfers = await dbOp('cashTransfers', 'getAll');
+        let custDebts = await dbOp('customerDebts', 'getAll');
+        let custPays = await dbOp('customerPayments', 'getAll');
+        let inventoryVals = await dbOp('inventoryValuations', 'getAll');
+
+        let targetSales = sales.filter(x => x.date.startsWith(selectedMonth));
+        let targetPurcs = purcs.filter(x => x.date.startsWith(selectedMonth));
+        let targetRets = rets.filter(x => x.date.startsWith(selectedMonth));
+        let targetExps = exps.filter(x => x.date.startsWith(selectedMonth));
+        let targetSuppPays = suppPays.filter(x => x.date.startsWith(selectedMonth));
+        let targetTransfers = transfers.filter(x => x.date.startsWith(selectedMonth));
+        let targetCustDebts = custDebts.filter(x => x.date.startsWith(selectedMonth));
+        let targetCustPays = custPays.filter(x => x.date.startsWith(selectedMonth));
+        let targetInventoryVals = inventoryVals.filter(x => x.date.startsWith(selectedMonth));
+
+        let sSum = targetSales.reduce((a,b)=>round2(a+Number(b.amount)), 0);
+        let pSum = targetPurcs.reduce((a,b)=>round2(a+Number(b.totalValue)), 0);
+        let rSum = targetRets.reduce((a,b)=>round2(a+Number(b.returnValue)), 0);
+        let eSum = targetExps.reduce((a,b)=>round2(a+Number(b.amount)), 0);
+        let spSum = targetSuppPays.reduce((a,b)=>round2(a+Number(b.amount)), 0);
+        let cpSum = targetCustPays.reduce((a,b)=>round2(a+Number(b.amount)), 0);
+
+        let netCashFlow = round2(sSum - (eSum + spSum));
+
+        let h = `
+        <div style="font-family:'Cairo', sans-serif; padding:5px; line-height: 1.35;">
+            <div style="text-align:center; margin-bottom:12px; border-bottom:2px solid var(--primary); padding-bottom:8px;">
+                <h3 style="margin:0; color:var(--primary); font-weight:700; font-size:1.25rem;">الملخص المالي الشهري الشامل</h3>
+                <p style="margin:2px 0 0 0; font-size:0.9rem; font-weight:bold; color:var(--text-muted);">لشهر: ${selectedMonth}</p>
+            </div>
+
+            <div class="grid-cards" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:15px;">
+                <div class="stat-card" style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#0369a1; font-weight:bold; font-size:0.8rem;">مبيعات الشهر النقدية</div>
+                    <div class="stat-value" style="color:#0284c7; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(sSum)}</div>
+                </div>
+                <div class="stat-card" style="background:#fee2e2; border:1px solid #fecaca; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#b91c1c; font-weight:bold; font-size:0.8rem;">نفقات ومصروفات الشهر</div>
+                    <div class="stat-value" style="color:#dc2626; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(eSum)}</div>
+                </div>
+                <div class="stat-card" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#166534; font-weight:bold; font-size:0.8rem;">صافي التدفق النقدي الفعلي</div>
+                    <div class="stat-value" style="color:#15803d; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(netCashFlow)}</div>
+                </div>
+            </div>
+
+            <div class="grid-cards" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:15px;">
+                <div class="stat-card" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#c2410c; font-weight:bold; font-size:0.8rem;">مشتريات الشهر المعتمدة آجل</div>
+                    <div class="stat-value" style="color:#ea580c; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(pSum)}</div>
+                </div>
+                <div class="stat-card" style="background:#f3e8ff; border:1px solid #e9d5ff; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#7e22ce; font-weight:bold; font-size:0.8rem;">سداد مدفوعات الموردين</div>
+                    <div class="stat-value" style="color:#9333ea; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(spSum)}</div>
+                </div>
+                <div class="stat-card" style="background:#ecfdf5; border:1px solid #d1fae5; border-radius:var(--radius); padding:8px; text-align:center;">
+                    <div class="stat-title" style="color:#047857; font-weight:bold; font-size:0.8rem;">مجموع تسديدات العملاء</div>
+                    <div class="stat-value" style="color:#059669; font-weight:bold; font-size:1.1rem; margin-top:2px;">${formatMoney(cpSum)}</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+                <div style="background:var(--primary); color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem;">
+                    📝 تفصيل إحصاءات المعاملات الإجمالية لهذا الشهر
+                </div>
+                <div style="padding:10px; background:var(--surface);">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                        <thead>
+                            <tr style="background:var(--bg); border-bottom:1px solid var(--border);"><th style="padding:6px; text-align:right;">نوع المعاملة الحسابية</th><th style="padding:6px; text-align:left;">إجمالي القيمة المالية</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">المبيعات النقدية الموردة للخزينة</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--success);">${formatMoney(sSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">المشتريات الآجلة الموردة من الشركات</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--danger);">${formatMoney(pSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">مرتجع المشتريات المستردة مالياً من الشركات</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--warning);">${formatMoney(rSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">المصروفات والرواتب المدفوعة</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--danger);">${formatMoney(eSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">مدفوعات سداد الموردين</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--danger);">${formatMoney(spSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">تسديدات وتحصيلات العملاء الجارية المقبوضة</td><td style="padding:6px; text-align:left; font-weight:bold; color:var(--success);">${formatMoney(cpSum)}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">حركات التحويل النقدي الداخلي المجرية</td><td style="padding:6px; text-align:left; font-weight:bold;">${formatMoney(targetTransfers.reduce((a,b)=>round2(a+Number(b.amount)),0))}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">آخر تقييم جرد للمخزون سُجل في هذا الشهر</td><td style="padding:6px; text-align:left; font-weight:bold;">${targetInventoryVals.length > 0 ? formatMoney(targetInventoryVals[targetInventoryVals.length-1].value) : 'لم يتم الجرد'}</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">آخر جرد لديون العملاء سُجل في هذا الشهر</td><td style="padding:6px; text-align:left; font-weight:bold;">${targetCustDebts.length > 0 ? formatMoney(targetCustDebts[targetCustDebts.length-1].totalDebt) : 'لم يتم التحديث'}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+        document.getElementById('ms-results').innerHTML = h;
+    }
+
     async function generateDailySummary() {
+        if (!isUnlocked) return;
         let dsDate = document.getElementById('ds-date').value;
         if (!dsDate) {
-            dsDate = new Date().toISOString().slice(0, 10);
+            dsDate = getLocalDateString();
             document.getElementById('ds-date').value = dsDate;
         }
 
-        // قراءة الاختيارات من صناديق الاختيار العشرة للتحكم بظهور كافة المعاملات
         let showSales = document.getElementById('ds-show-sales').checked;
         let showPurchases = document.getElementById('ds-show-purchases').checked;
         let showReturns = document.getElementById('ds-show-returns').checked;
@@ -1775,7 +2278,6 @@
         let showCustDebts = document.getElementById('ds-show-cust-debts').checked;
         let showCustPayments = document.getElementById('ds-show-cust-payments').checked;
         let showInventory = document.getElementById('ds-show-inventory').checked;
-        let showOrders = document.getElementById('ds-show-orders').checked;
 
         let sales = (await dbOp('sales', 'getAll')).filter(x => x.date === dsDate);
         let purcs = (await dbOp('purchases', 'getAll')).filter(x => x.date === dsDate);
@@ -1786,19 +2288,19 @@
         let custDebts = (await dbOp('customerDebts', 'getAll')).filter(x => x.date === dsDate);
         let custPays = (await dbOp('customerPayments', 'getAll')).filter(x => x.date === dsDate);
         let inventoryVals = (await dbOp('inventoryValuations', 'getAll')).filter(x => x.date === dsDate);
-        let supplierOrders = (await dbOp('supplierOrders', 'getAll')).filter(x => x.orderDate === dsDate || x.deliveryDate === dsDate);
 
         let sups = await calcSupplierBalances();
-        let totalSupDebt = sups.reduce((a,b)=>a+b.curBal,0);
-        let totalCustDebt = await getLastCustomerTotalDebt();
+        let totalSupDebt = sups.reduce((a,b)=>round2(a+b.curBal),0);
+        
+        let lastDebtInfo = await getLastCustomerTotalDebt();
+        let totalCustDebt = lastDebtInfo.value;
         let tBal = await getTreasuryBalance();
 
-        // جلب آخر قيمة مسجلة لتقييم وجرد المخزون يدوي لدمجها ضمن التقرير اليومي الشامل
         let invs = await dbOp('inventoryValuations', 'getAll');
         let totalInventory = 0;
         if(invs.length) {
             invs.sort((a,b) => new Date(a.date) - new Date(b.date));
-            totalInventory = Number(invs[invs.length - 1].value || 0);
+            totalInventory = round2(invs[invs.length - 1].value || 0);
         }
 
         let dictEmps = await getDict('employees');
@@ -1833,12 +2335,12 @@
         `;
 
         if (showSales) {
-            let totSales = sales.reduce((a,b)=>a+Number(b.amount),0);
+            let totSales = sales.reduce((a,b)=>round2(a+Number(b.amount)),0);
             let salesGroup = {};
             sales.forEach(s => {
-                let emp = dictEmps[s.employeeId] || 'غير معروف';
+                let emp = dictEmps[String(s.employeeId)] || 'غير معروف';
                 if(!salesGroup[emp]) salesGroup[emp] = 0;
-                salesGroup[emp] += Number(s.amount);
+                salesGroup[emp] = round2(salesGroup[emp] + Number(s.amount));
             });
 
             h += `
@@ -1866,12 +2368,12 @@
         }
 
         if (showPurchases) {
-            let totPurc = purcs.reduce((a,b)=>a+Number(b.totalValue),0);
+            let totPurc = purcs.reduce((a,b)=>round2(a+Number(b.totalValue)),0);
             let purcsGroup = {};
             purcs.forEach(p => {
-                let sup = dictSups[p.supplierId] || 'غير معروف';
+                let sup = dictSups[String(p.supplierId)] || 'غير معروف';
                 if(!purcsGroup[sup]) purcsGroup[sup] = 0;
-                purcsGroup[sup] += Number(p.totalValue);
+                purcsGroup[sup] = round2(purcsGroup[sup] + Number(p.totalValue));
             });
 
             h += `
@@ -1899,23 +2401,23 @@
         }
 
         if (showReturns) {
-            let totRet = rets.reduce((a,b)=>a+Number(b.returnValue),0);
+            let totRet = rets.reduce((a,b)=>round2(a+Number(b.returnValue)),0);
             let retsGroup = {};
             rets.forEach(r => {
-                let sup = dictSups[r.supplierId] || 'غير معروف';
+                let sup = dictSups[String(r.supplierId)] || 'غير معروف';
                 if(!retsGroup[sup]) retsGroup[sup] = 0;
-                retsGroup[sup] += Number(r.returnValue);
+                retsGroup[sup] = round2(retsGroup[sup] + Number(r.returnValue));
             });
 
             h += `
             <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
                 <div style="background:#475569; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
-                    <span>↩️ مرتجع المشتريات اليومية (تأثير حساب المورد)</span>
+                    <span>↩️ مرتجع المشتريات اليومية</span>
                     <span>إجمالي المرتجعات: ${formatMoney(totRet)}</span>
                 </div>
                 <div style="padding:6px; background:var(--surface);">
             `;
-            if(Object.keys(retsGroup).length === 0) {
+            if (Object.keys(retsGroup).length === 0) {
                 h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد مرتجعات مشتريات اليوم</p>`;
             } else {
                 h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
@@ -1932,12 +2434,12 @@
         }
 
         if (showExpenses) {
-            let totExps = exps.reduce((a,b)=>a+Number(b.amount),0);
+            let totExps = exps.reduce((a,b)=>round2(a+Number(b.amount)),0);
             let expsGroup = {};
             exps.forEach(e => {
                 let cat = e.category || 'غير محدد';
                 if(!expsGroup[cat]) expsGroup[cat] = 0;
-                expsGroup[cat] += Number(e.amount);
+                expsGroup[cat] = round2(expsGroup[cat] + Number(e.amount));
             });
 
             h += `
@@ -1965,12 +2467,12 @@
         }
 
         if (showSuppPayments) {
-            let totSuppPays = suppPays.reduce((a,b)=>a+Number(b.amount),0);
+            let totSuppPays = suppPays.reduce((a,b)=>round2(a+Number(b.amount)),0);
             let suppPaysGroup = {};
             suppPays.forEach(p => {
-                let sup = dictSups[p.supplierId] || 'غير معروف';
+                let sup = dictSups[String(p.supplierId)] || 'غير معروف';
                 if(!suppPaysGroup[sup]) suppPaysGroup[sup] = 0;
-                suppPaysGroup[sup] += Number(p.amount);
+                suppPaysGroup[sup] = round2(suppPaysGroup[sup] + Number(p.amount));
             });
 
             h += `
@@ -1998,7 +2500,7 @@
         }
 
         if (showTransfers) {
-            let totTrans = transfers.reduce((a,b)=>a+Number(b.amount),0);
+            let totTrans = transfers.reduce((a,b)=>round2(a+Number(b.amount)),0);
             
             h += `
             <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
@@ -2069,11 +2571,11 @@
         }
 
         if (showCustPayments) {
-            let totCustPays = custPays.reduce((a,b)=>a+Number(b.amount),0);
+            let totCustPays = custPays.reduce((a,b)=>round2(a+Number(b.amount)),0);
             h += `
             <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
                 <div style="background:#0284c7; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
-                    <span>👥 التحصيلات المقبوضة من ديون العملاء (إرشادية مستقلة)</span>
+                    <span>👥 التحصيلات المقبوضة من ديون العملاء</span>
                     <span>مجموع المقبوض: ${formatMoney(totCustPays)}</span>
                 </div>
                 <div style="padding:6px; background:var(--surface);">
@@ -2091,7 +2593,7 @@
                     </thead>
                     <tbody>`;
                 custPays.forEach(p => {
-                    let name = p.customerName || dictCusts[p.customerId] || 'عميل غير معروف';
+                    let name = p.customerName || dictCusts[String(p.customerId)] || 'عميل غير معروف';
                     h += `<tr style="border-bottom:1px solid var(--border);">
                         <td style="padding:4px 6px;">${name}</td>
                         <td style="padding:4px 6px;">${p.notes || ''}</td>
@@ -2134,43 +2636,6 @@
             h += `</div></div>`;
         }
 
-        if (showOrders) {
-            h += `
-            <div style="margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
-                <div style="background:#4f46e5; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem; display:flex; justify-content:space-between; align-items:center;">
-                    <span>📦 طلبيات وتعهدات التوريد للموردين النشطة</span>
-                    <span>الطلبيات الجارية اليوم: ${supplierOrders.length}</span>
-                </div>
-                <div style="padding:6px; background:var(--surface);">
-            `;
-            if(supplierOrders.length === 0) {
-                h += `<p style="text-align:center; color:var(--text-muted); margin:4px 0; font-size:0.8rem;">لا توجد طلبيات مدرجة أو تستحق التسليم اليوم</p>`;
-            } else {
-                h += `<table style="width:100%; border-collapse:collapse; font-size:0.8rem;">
-                    <thead>
-                        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
-                            <th style="padding:4px 6px; text-align:right;">المورد المستهدف</th>
-                            <th style="padding:4px 6px; text-align:right;">الحالة</th>
-                            <th style="padding:4px 6px; text-align:right;">تاريخ التسليم</th>
-                            <th style="padding:4px 6px; text-align:left;">القيمة المقدرة</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-                supplierOrders.forEach(o => {
-                    let sName = dictSups[o.supplierId] || 'غير معروف';
-                    let statusTxt = o.status === 'pending' ? 'قيد الانتظار' : (o.status === 'postponed' ? 'مؤجلة' : (o.status === 'cancelled' ? 'ملغاة' : 'مستلمة'));
-                    h += `<tr style="border-bottom:1px solid var(--border);">
-                        <td style="padding:4px 6px;">${sName}</td>
-                        <td style="padding:4px 6px;">${statusTxt}</td>
-                        <td style="padding:4px 6px;">${o.deliveryDate}</td>
-                        <td style="padding:4px 6px; text-align:left; font-weight:bold;">${formatMoney(o.amount)}</td>
-                    </tr>`;
-                });
-                h += `</tbody></table>`;
-            }
-            h += `</div></div>`;
-        }
-
         h += `
             <div style="margin-top:20px; border-top:1px dashed var(--border); padding-top:10px; text-align:center; font-size:0.75rem; color:var(--text-muted);">
                 تاريخ استخراج التقرير الفوري: ${new Date().toLocaleString('ar-EG')} | تم التوليد آلياً لغرفة الإدارة المالية بالصيدلية
@@ -2184,7 +2649,6 @@
     async function loadSettingsData() {
         let sets = await dbOp('settings','getAll'); sets.forEach(s => appSettings[s.id] = s.value);
         
-        // معطيات الربط السحابي الآمنة الافتراضية المدمجة بموجب المعطيات المزودة
         const preConfiguredFB = {
             apiKey: "AIzaSyB61x-z2PfkALiC49BDZIUkeVxGeLk3kes",
             authDomain: "studio-7914917911-f06db.firebaseapp.com",
@@ -2195,6 +2659,7 @@
         if(Object.keys(appSettings).length === 0) {
             let defs = { 
                 pharmacyName:'صيدليتي', 
+                appName: 'نظام الإدارة المالية للصيدلية',
                 currency:'ج.م', 
                 theme:'light', 
                 treasuryOpeningBalance:0, 
@@ -2204,37 +2669,63 @@
                 employeeRoles:['صيدلي مرخص','مساعد صيدلي','محاسب إداري'],
                 firebaseEnabled: false,
                 firebaseConfig: preConfiguredFB,
-                appPin: ''
+                appPinHash: ''
             };
             for(let k in defs) await dbOp('settings','add',{id:k, value:defs[k]});
             appSettings = defs;
         } else {
+            if (appSettings.appPin && !appSettings.appPinHash) {
+                let hashed = await hashPIN(appSettings.appPin);
+                await dbOp('settings', 'put', { id: 'appPinHash', value: hashed });
+                await dbOp('settings', 'delete', 'appPin');
+                appSettings.appPinHash = hashed;
+                delete appSettings.appPin;
+            }
             if (!appSettings.firebaseConfig) {
                 await dbOp('settings', 'put', { id: 'firebaseConfig', value: preConfiguredFB });
                 appSettings.firebaseConfig = preConfiguredFB;
             }
+            if (!appSettings.appName) {
+                await dbOp('settings', 'put', { id: 'appName', value: 'نظام الإدارة المالية للصيدلية' });
+                appSettings.appName = 'نظام الإدارة المالية للصيدلية';
+            }
         }
         currencySymbol = appSettings.currency || 'ج.م';
         document.getElementById('pharmacy-name-display').textContent = appSettings.pharmacyName || 'صيدليتي';
+        
+        let systemName = appSettings.appName || 'نظام الإدارة المالية للصيدلية';
+        document.getElementById('app-tab-title').textContent = systemName;
+        
         document.documentElement.setAttribute('data-theme', appSettings.theme || 'light');
         
-        // التحقق من تفعيل رمز الحماية وقفل التطبيق على الفور
         checkAppPinOnLoad();
     }
 
     async function saveSettings(group) {
+        if (!isUnlocked) return;
         if(group==='general') {
             await dbOp('settings','put',{id:'pharmacyName', value:document.getElementById('set-pharmacyName').value});
+            await dbOp('settings','put',{id:'appName', value:document.getElementById('set-appName').value});
             await dbOp('settings','put',{id:'currency', value:document.getElementById('set-currency').value});
             await dbOp('settings','put',{id:'mainTreasury', value:document.getElementById('set-mainTreasury').value});
-            await dbOp('settings','put',{id:'treasuryOpeningBalance', value:Number(document.getElementById('set-treasuryOpeningBalance').value)});
+            await dbOp('settings','put',{id:'treasuryOpeningBalance', value:round2(document.getElementById('set-treasuryOpeningBalance').value)});
         } else {
             let t = document.getElementById('set-treasuries').value.split(',').map(x=>x.trim()).filter(x=>x);
             let e = document.getElementById('set-expenseCategories').value.split(',').map(x=>x.trim()).filter(x=>x);
             let r = document.getElementById('set-employeeRoles').value.split(',').map(x=>x.trim()).filter(x=>x);
-            await dbOp('settings','put',{id:'treasuries', value:t}); await dbOp('settings','put',{id:'expenseCategories', value:e}); await dbOp('settings','put',{id:'employeeRoles', value:r});
+            await dbOp('settings','put',{id:'treasuries', value:t}); 
+            await dbOp('settings','put',{id:'expenseCategories', value:e}); 
+            await dbOp('settings','put',{id:'employeeRoles', value:r});
         }
         showToast('تم حفظ الإعدادات بنجاح'); loadSettingsData();
+    }
+
+    function showSettingsTab(tabId, btnElem) {
+        document.querySelectorAll('.settings-tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        if (btnElem) btnElem.classList.add('active');
     }
 
     function toggleFirebaseUI() {
@@ -2246,6 +2737,7 @@
     }
 
     async function saveFirebaseSettings() {
+        if (!isUnlocked) return;
         let enabled = document.getElementById('set-firebaseEnabled').checked;
         let config = {
             apiKey: document.getElementById('set-fbApiKey').value.trim(),
@@ -2269,62 +2761,79 @@
         }
     }
 
-    /* ================= معالجة المزامنة السحابية (Push & Pull) ================= */
     async function syncPushToCloud() {
+        if (!isUnlocked) return;
         if (!isFirebaseEnabled) {
             showToast("الربط السحابي غير مفعل حالياً", "danger");
             return;
         }
-        if (!confirm("هل أنت متأكد من ترحيل وتأمين كافة الحسابات المحلية إلى السحابة؟ قد يحل هذا محل البيانات القديمة.")) return;
+        if (!confirm("هل أنت متأكد من مزامنة الحسابات المحلية ورفعها إلى السحاب؟ سيتم دمج البيانات بناءً على تاريخ آخر تحديث لحمايتها من الفقدان.")) return;
         
-        showToast("جاري ترحيل ورفع قواعد البيانات سحابياً...", "info");
+        showToast("جاري معالجة ومزامنة البيانات مع السحابة...", "info");
         try {
             for (let key in storeMap) {
                 let store = storeMap[key];
                 let localData = await dbOp(store, 'getAll');
-                
-                let batch = fsDb.batch();
                 let colRef = fsDb.collection(store);
                 
-                let oldDocs = await colRef.get();
-                oldDocs.forEach(doc => batch.delete(doc.ref));
-                
-                localData.forEach(doc => {
-                    let docId = String(doc.id);
-                    batch.set(colRef.doc(docId), doc);
-                });
-                await batch.commit();
+                let cloudSnap = await colRef.get();
+                let cloudMap = {};
+                cloudSnap.forEach(doc => { cloudMap[doc.id] = doc.data(); });
+
+                let batch = fsDb.batch();
+                let count = 0;
+
+                for (let localDoc of localData) {
+                    let docId = String(localDoc.id);
+                    let cloudDoc = cloudMap[docId];
+                    
+                    if (!cloudDoc || (localDoc.lastUpdated || 0) > (cloudDoc.lastUpdated || 0)) {
+                        batch.set(colRef.doc(docId), localDoc, { merge: true });
+                        count++;
+                    }
+                }
+
+                if (count > 0) {
+                    await batch.commit();
+                }
             }
-            showToast("اكتمل رفع ونسخ الملفات السحابية بأمان تام", "success");
+            showToast("اكتملت عملية المزامنة السحابية ورفع البيانات بنجاح", "success");
         } catch (err) {
             console.error(err);
-            showToast("حدث خطأ ما في شبكة النقل: " + err.message, "danger");
+            showToast("حدث خطأ أثناء المزامنة: " + err.message, "danger");
         }
     }
 
     async function syncPullFromCloud() {
+        if (!isUnlocked) return;
         if (!isFirebaseEnabled) {
             showToast("الربط السحابي غير مفعل حالياً", "danger");
             return;
         }
-        if (!confirm("🚨 تحذير: سيقوم المتصفح بمسح القواعد الحالية تماماً وتنزيل النسخة السحابية المعتمدة! هل توافق؟")) return;
+        if (!confirm("هل توافق على سحب البيانات من السحابة ودمجها مع المتصفح بناءً على تاريخ التحديث الأحدث؟")) return;
         
-        showToast("جاري سحب واستيراد الدفاتر المالية السحابية للمتصفح...", "info");
+        showToast("جاري سحب ودمج الدفاتر المالية السحابية...", "info");
         try {
+            let updatedCount = 0;
             for (let key in storeMap) {
                 let store = storeMap[key];
-                await dbOp(store, 'clear');
-                
                 let snapshot = await fsDb.collection(store).get();
+                
                 for (let doc of snapshot.docs) {
-                    await dbOp(store, 'put', doc.data());
+                    let cloudDoc = doc.data();
+                    let localDoc = await dbOp(store, 'get', cloudDoc.id);
+                    
+                    if (!localDoc || (cloudDoc.lastUpdated || 0) > (localDoc.lastUpdated || 0)) {
+                        await dbOp(store, 'put', cloudDoc);
+                        updatedCount++;
+                    }
                 }
             }
-            showToast("اكتمل سحب البيانات وتحديث القواعد، جاري تجديد الشاشة...", "success");
+            showToast(`اكتمل تحديث ودمج البيانات بنجاح (سجلات مدمجة: ${updatedCount})، جاري تحديث الشاشة...`, "success");
             setTimeout(() => location.reload(), 1500);
         } catch (err) {
             console.error(err);
-            showToast("حدث خطأ أثناء الاتصال بالخادم: " + err.message, "danger");
+            showToast("حدث خطأ أثناء سحب البيانات: " + err.message, "danger");
         }
     }
 
@@ -2335,12 +2844,14 @@
     }
 
     async function backupData() {
+        if (!isUnlocked) return;
         let exp = {}; for(let k in storeMap) exp[storeMap[k]] = await dbOp(storeMap[k],'getAll'); exp['settings'] = await dbOp('settings','getAll');
         let blob = new Blob([JSON.stringify(exp)], {type:'application/json'}); let a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = `Pharmacy_Fin_Backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        a.download = `Pharmacy_Fin_Backup_${getLocalDateString()}.json`; a.click();
     }
     
     function restoreData(e) {
+        if (!isUnlocked) return;
         let file = e.target.files[0]; if(!file) return; let reader = new FileReader();
         reader.onload = async (ev) => {
             try {
@@ -2352,6 +2863,7 @@
     }
 
     async function factoryReset() {
+        if (!isUnlocked) return;
         if(confirm('تنبيه خطير: سيتم مسح كافة البيانات بشكل كامل! هل توافق؟') && confirm('تأكيد نهائي لمرة واحدة: لا يمكن التراجع أبداً بعد المتابعة!')) {
             for(let k in storeMap) await dbOp(storeMap[k],'clear'); await dbOp('settings','clear');
             showToast('تمت إعادة ضبط المصنع ومسح قواعد المتصفح'); setTimeout(()=>location.reload(), 1000);
@@ -2360,6 +2872,10 @@
 
     /* ================= INITIALIZATION ================= */
     function showSection(id) {
+        if (!isUnlocked) {
+            document.getElementById('pin-lock-overlay').style.display = 'flex';
+            return;
+        }
         document.querySelectorAll('.page-section').forEach(el=>el.classList.remove('active'));
         document.getElementById(`sec-${id}`).classList.add('active');
         document.querySelectorAll('.nav-link').forEach(el=>el.classList.remove('active'));
@@ -2377,10 +2893,9 @@
             await initDB(); 
             await loadSettingsData();
             await initFirebase();
-            const eTypes = ['Sales','Purchases','PurchaseReturns','InventoryValuations','Expenses','Suppliers','SupplierPayments','SupplierOrders','Customers','CustomerDebts','CustomerPayments','Employees','Transfers'];
+            const eTypes = ['Sales','Purchases','PurchaseReturns','InventoryValuations','Expenses','Suppliers','SupplierPayments','Customers','CustomerDebts','CustomerPayments','Employees','Transfers'];
             eTypes.forEach(t => { window[`edit${t}`] = (id) => openModalForm(t.charAt(0).toLowerCase() + t.slice(1), id); window[`del${t}`] = (id) => delRecord(t.charAt(0).toLowerCase() + t.slice(1), id); });
             window.showSubTab = function(id) { document.querySelectorAll(`#sec-${id.split('-')[0] === 'sup' ? 'suppliers' : (id.split('-')[0] === 'purc' ? 'purchases' : 'customers')} .sub-tab`).forEach(e=>e.style.display='none'); document.getElementById(id).style.display='block'; if(id==='sup-statement') renderSupplierStatement(); }
-            showSection('dashboard');
         } catch(e) { alert('حدث خطأ غير متوقع في تهيئة قاعدة بيانات IndexedDB. يرجى التحديث أو استخدام متصفح يدعم المعايير الحديثة.'); }
     };
 </script>
